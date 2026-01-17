@@ -1,0 +1,66 @@
+name: buymoregh_agent
+description: "BuyMore Agent App - Offline-first mobile app for hire purchase agents"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  
+  # State Management
+  provider: ^6.1.2
+  
+  # Local Database (SQLite)
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  
+  # Network & API
+  http: ^1.2.1
+  connectivity_plus: ^6.0.3
+  
+  # Secure Storage (for tokens)
+  flutter_secure_storage: ^9.0.0
+  
+  # JSON Serialization
+  json_annotation: ^4.9.0
+  
+  # UI Components
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  flutter_svg: ^2.0.10+1
+  
+  # Utilities
+  intl: ^0.19.0
+  uuid: ^4.4.0
+  
+  # Pull to Refresh
+  pull_to_refresh_flutter3: ^2.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.9
+  json_serializable: ^6.8.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+  
+  # Uncomment and add font files to use custom fonts
+  # fonts:
+  #   - family: Poppins
+  #     fonts:
+  #       - asset: assets/fonts/Poppins-Regular.ttf
+  #       - asset: assets/fonts/Poppins-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Poppins-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Poppins-Bold.ttf
+  #         weight: 700
