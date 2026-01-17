@@ -4,8 +4,101 @@ import '../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/forgot_password_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  bool _requireLoginEveryTime = false;
+  String _biometricTypeName = 'Fingerprint';
+  bool _isLoadingSettings = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSecuritySettings();
+  }
+
+  Future<void> _loadSecuritySettings() async {
+    final authProvider = context.read<AuthProvider>();
+    
+    final biometricAvailable = await authProvider.isBiometricAvailable();
+    final biometricEnabled = await authProvider.isBiometricEnabled();
+    final requireLogin = await authProvider.isRequireLoginEveryTime();
+    final biometricName = await authProvider.getBiometricTypeName();
+    
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = biometricAvailable;
+        _biometricEnabled = biometricEnabled;
+        _requireLoginEveryTime = requireLogin;
+        _biometricTypeName = biometricName;
+        _isLoadingSettings = false;
+      });
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    final authProvider = context.read<AuthProvider>();
+    
+    final success = await authProvider.setBiometricEnabled(value);
+    
+    if (success) {
+      setState(() {
+        _biometricEnabled = value;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value 
+                  ? '$_biometricTypeName login enabled' 
+                  : '$_biometricTypeName login disabled'
+            ),
+            backgroundColor: AppTheme.completedStatus,
+          ),
+        );
+      }
+    } else {
+      if (mounted && authProvider.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.error!),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        authProvider.clearError();
+      }
+    }
+  }
+
+  Future<void> _toggleRequireLogin(bool value) async {
+    final authProvider = context.read<AuthProvider>();
+    
+    await authProvider.setRequireLoginEveryTime(value);
+    
+    setState(() {
+      _requireLoginEveryTime = value;
+    });
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            value 
+                ? 'Login will be required every time' 
+                : 'You will stay logged in'
+          ),
+          backgroundColor: AppTheme.completedStatus,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +125,7 @@ class ProfileScreen extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Profile Card
             Container(
@@ -153,7 +247,9 @@ class ProfileScreen extends StatelessWidget {
             
             const SizedBox(height: 24),
             
-            // Actions
+            // Security Section
+            _buildSectionHeader('Security'),
+            const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -161,6 +257,35 @@ class ProfileScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
+                  // Require Login Every Time
+                  _buildSwitchTile(
+                    icon: Icons.lock_clock,
+                    iconColor: AppTheme.warningColor,
+                    title: 'Require Login Every Time',
+                    subtitle: 'Always require authentication when opening the app',
+                    value: _requireLoginEveryTime,
+                    onChanged: _isLoadingSettings ? null : _toggleRequireLogin,
+                  ),
+                  
+                  const Divider(height: 1),
+                  
+                  // Biometric Authentication
+                  if (_biometricAvailable) ...[
+                    _buildSwitchTile(
+                      icon: Icons.fingerprint,
+                      iconColor: AppTheme.primaryColor,
+                      title: '$_biometricTypeName Login',
+                      subtitle: 'Use $_biometricTypeName to unlock the app',
+                      value: _biometricEnabled,
+                      onChanged: _isLoadingSettings 
+                          ? null 
+                          : (_requireLoginEveryTime ? _toggleBiometric : null),
+                      disabled: !_requireLoginEveryTime,
+                      disabledHint: 'Enable "Require Login Every Time" first',
+                    ),
+                    const Divider(height: 1),
+                  ],
+                  
                   // Reset Password
                   ListTile(
                     leading: Container(
@@ -194,6 +319,42 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             
+            // Help text for security settings
+            if (_requireLoginEveryTime) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withOpacity(0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 20,
+                      color: AppTheme.primaryColor.withOpacity(0.7),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _biometricEnabled
+                            ? 'You will need to use $_biometricTypeName or password each time you open the app.'
+                            : 'You will need to enter your password each time you open the app.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
             const SizedBox(height: 24),
             
             // Logout Button
@@ -219,15 +380,31 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 24),
             
             // App Version
-            Text(
-              'BuyMore Agent v1.0.0',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textHint,
+            Center(
+              child: Text(
+                'BuyMore Agent v1.0.0',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textHint,
+                ),
               ),
             ),
             
             const SizedBox(height: 32),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
         ),
       ),
     );
@@ -265,6 +442,50 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required void Function(bool)? onChanged,
+    bool disabled = false,
+    String? disabledHint,
+  }) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(disabled ? 0.05 : 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          icon,
+          color: disabled ? iconColor.withOpacity(0.3) : iconColor,
+        ),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: disabled ? AppTheme.textHint : AppTheme.textPrimary,
+        ),
+      ),
+      subtitle: Text(
+        disabled && disabledHint != null ? disabledHint : subtitle,
+        style: TextStyle(
+          color: disabled ? AppTheme.textHint : AppTheme.textSecondary,
+        ),
+      ),
+      trailing: Switch(
+        value: value,
+        onChanged: disabled ? null : onChanged,
+        activeColor: AppTheme.primaryColor,
       ),
     );
   }

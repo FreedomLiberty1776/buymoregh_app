@@ -2,7 +2,7 @@ import 'local_db_migration.dart';
 
 /// Current database version
 /// Increment this whenever you add a new migration
-const int currentVersion = 2;
+const int currentVersion = 3;
 
 /// Initial database schema (version 1)
 /// This represents the original table structures
@@ -161,6 +161,7 @@ List<TableMigration> initialMigration = [
 /// Each migration list corresponds to a version upgrade
 List<List<TableMigration>> migrations = [
   migration2,
+  migration3,
 ];
 
 /// Migration 2: Add extended customer fields
@@ -267,6 +268,100 @@ List<TableMigration> migration2 = [
         action: 'add',
         oldName: '',
         defaultValue: 0),
+  ]),
+];
+
+/// Migration 3: Add User fields and AppSettings table
+List<TableMigration> migration3 = [
+  // Add new User fields
+  TableMigration(table: 'User', migrationVersion: 3, fieldItems: [
+    FieldItem(
+        fieldName: 'assigned_region',
+        type: 'string',
+        action: 'add',
+        oldName: '',
+        defaultValue: ''),
+    FieldItem(
+        fieldName: 'is_admin',
+        type: 'boolean',
+        action: 'add',
+        oldName: '',
+        defaultValue: 0),
+    FieldItem(
+        fieldName: 'is_super_admin',
+        type: 'boolean',
+        action: 'add',
+        oldName: '',
+        defaultValue: 0),
+  ]),
+  // Add Payment fields
+  TableMigration(table: 'Payment', migrationVersion: 3, fieldItems: [
+    FieldItem(
+        fieldName: 'customer_phone',
+        type: 'string',
+        action: 'add',
+        oldName: '',
+        defaultValue: ''),
+    FieldItem(
+        fieldName: 'agent_name',
+        type: 'string',
+        action: 'add',
+        oldName: '',
+        defaultValue: ''),
+    FieldItem(
+        fieldName: 'notes',
+        type: 'string',
+        action: 'add',
+        oldName: '',
+        defaultValue: ''),
+    FieldItem(
+        fieldName: 'product_name',
+        type: 'string',
+        action: 'add',
+        oldName: '',
+        defaultValue: ''),
+    FieldItem(
+        fieldName: 'product_id',
+        type: 'integer',
+        action: 'add',
+        oldName: ''),
+    FieldItem(
+        fieldName: 'contract_total_amount',
+        type: 'double',
+        action: 'add',
+        oldName: '',
+        defaultValue: 0),
+    FieldItem(
+        fieldName: 'balance_before',
+        type: 'double',
+        action: 'add',
+        oldName: '',
+        defaultValue: 0),
+    FieldItem(
+        fieldName: 'balance_after',
+        type: 'double',
+        action: 'add',
+        oldName: '',
+        defaultValue: 0),
+  ]),
+  // Add AppSettings table
+  TableMigration(table: 'AppSettings', migrationVersion: 3, fieldItems: [
+    FieldItem(
+        fieldName: 'id',
+        type: 'integer',
+        action: 'add',
+        oldName: '',
+        isPrimaryKey: true,
+        autoIncreasePrimaryKey: true),
+    FieldItem(
+        fieldName: 'key',
+        type: 'string',
+        action: 'add',
+        oldName: '',
+        isUnique: true),
+    FieldItem(fieldName: 'value', type: 'string', action: 'add', oldName: ''),
+    FieldItem(fieldName: 'created_at', type: 'string', action: 'add', oldName: ''),
+    FieldItem(fieldName: 'updated_at', type: 'string', action: 'add', oldName: ''),
   ]),
 ];
 

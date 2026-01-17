@@ -622,6 +622,50 @@ class DatabaseHelper {
     await db.delete('AuthToken');
   }
   
+  // ==================== APP SETTINGS OPERATIONS ====================
+  
+  Future<void> saveSetting(String key, String value) async {
+    final db = await database;
+    await db.insert(
+      'AppSettings',
+      {
+        'key': key,
+        'value': value,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+  
+  Future<String?> getSetting(String key) async {
+    final db = await database;
+    final maps = await db.query(
+      'AppSettings',
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return maps.first['value'] as String?;
+  }
+  
+  Future<bool> getSettingBool(String key, {bool defaultValue = false}) async {
+    final value = await getSetting(key);
+    if (value == null) return defaultValue;
+    return value == 'true' || value == '1';
+  }
+  
+  Future<void> deleteSetting(String key) async {
+    final db = await database;
+    await db.delete('AppSettings', where: 'key = ?', whereArgs: [key]);
+  }
+  
+  Future<void> clearSettings() async {
+    final db = await database;
+    await db.delete('AppSettings');
+  }
+  
   // ==================== UTILITY OPERATIONS ====================
   
   Future<void> clearAllData() async {
@@ -632,6 +676,7 @@ class DatabaseHelper {
     await db.delete('User');
     await db.delete('OfflineQueue');
     await db.delete('AuthToken');
+    // Keep AppSettings - they should persist across logouts
   }
   
   /// Force database reset - useful for development
