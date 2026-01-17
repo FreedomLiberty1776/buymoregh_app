@@ -6,6 +6,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/app_provider.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/payment_list_item.dart';
+import '../profile/profile_screen.dart';
+import '../payments/payment_detail_screen.dart';
 
 class DashboardTab extends StatelessWidget {
   const DashboardTab({super.key});
@@ -22,7 +24,7 @@ class DashboardTab extends StatelessWidget {
         child: RefreshIndicator(
           onRefresh: () async {
             final agentId = authProvider.user?.id;
-            await appProvider.loadDashboard(agentId: agentId);
+            await appProvider.loadAllData(agentId: agentId, forceRefresh: true);
           },
           child: CustomScrollView(
             slivers: [
@@ -32,39 +34,59 @@ class DashboardTab extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      // Avatar
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryLight.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Text(
-                            authProvider.user?.fullName.isNotEmpty == true
-                                ? authProvider.user!.fullName[0].toUpperCase()
-                                : 'A',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
+                      // Avatar - tappable for profile
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfileScreen(),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryLight.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Center(
+                            child: Text(
+                              authProvider.user?.fullName.isNotEmpty == true
+                                  ? authProvider.user!.fullName[0].toUpperCase()
+                                  : 'A',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       
-                      // Greeting
+                      // Greeting - also tappable for profile
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hello, ${authProvider.user?.firstName ?? 'Agent'}',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                          ],
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ProfileScreen(),
+                              ),
+                            );
+                          },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Hello, ${authProvider.user?.firstName ?? 'Agent'}',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       
@@ -214,7 +236,17 @@ class DashboardTab extends StatelessWidget {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final payment = appProvider.recentPayments[index];
-                      return PaymentListItem(payment: payment);
+                      return PaymentListItem(
+                        payment: payment,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PaymentDetailScreen(payment: payment),
+                            ),
+                          );
+                        },
+                      );
                     },
                     childCount: appProvider.recentPayments.length,
                   ),

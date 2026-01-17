@@ -124,6 +124,10 @@ class PaymentListItem extends StatelessWidget {
                 ],
               ],
             ),
+            if (onTap != null) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, color: AppTheme.textHint, size: 20),
+            ],
           ],
         ),
       ),

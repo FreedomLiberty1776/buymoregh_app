@@ -5,6 +5,7 @@ import '../../providers/app_provider.dart';
 import '../auth/login_screen.dart';
 import 'dashboard_tab.dart';
 import '../customers/customers_tab.dart';
+import '../contracts/contracts_tab.dart';
 import '../collections/collections_tab.dart';
 import '../reports/reports_tab.dart';
 
@@ -21,6 +22,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _tabs = const [
     DashboardTab(),
     CustomersTab(),
+    ContractsTab(),
     CollectionsTab(),
     ReportsTab(),
   ];
@@ -76,6 +78,7 @@ class _MainScreenState extends State<MainScreen> {
               _currentIndex = index;
             });
           },
+          type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_outlined),
@@ -86,6 +89,11 @@ class _MainScreenState extends State<MainScreen> {
               icon: Icon(Icons.people_outline),
               activeIcon: Icon(Icons.people),
               label: 'Customers',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.description_outlined),
+              activeIcon: Icon(Icons.description),
+              label: 'Contracts',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.receipt_long_outlined),

@@ -206,10 +206,58 @@ class ApiService {
       final response = await http.post(
         Uri.parse(ApiConfig.customers),
         headers: await _getHeaders(),
-        body: jsonEncode(customer.toJson()),
+        body: jsonEncode(customer.toCreateJson()),
       ).timeout(ApiConfig.connectionTimeout);
       
       return _handleResponse(response, (data) => Customer.fromJson(data));
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
+  /// Get a single customer by ID
+  Future<ApiResponse<Customer>> getCustomer(int customerId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.customers}$customerId/'),
+        headers: await _getHeaders(),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      return _handleResponse(response, (data) => Customer.fromJson(data));
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
+  /// Get contracts for a specific customer
+  Future<ApiResponse<List<Contract>>> getContractsForCustomer(int customerId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.contracts}?customer=$customerId'),
+        headers: await _getHeaders(),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      return _handleResponse(response, (data) {
+        final List<dynamic> results = data['results'] ?? data;
+        return results.map((e) => Contract.fromJson(e)).toList();
+      });
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
+  /// Get payments for a specific customer
+  Future<ApiResponse<List<Payment>>> getPaymentsForCustomer(int customerId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.payments}?customer=$customerId'),
+        headers: await _getHeaders(),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      return _handleResponse(response, (data) {
+        final List<dynamic> results = data['results'] ?? data;
+        return results.map((e) => Payment.fromJson(e)).toList();
+      });
     } catch (e) {
       return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
     }
@@ -276,21 +324,32 @@ class ApiService {
     required String paymentMethod,
     String? clientReference,
     String? momoPhone,
+    String? notes,
   }) async {
     try {
+      final body = <String, dynamic>{
+        'contract': contractId,
+        'amount': amount,  // Send as number, not string
+        'payment_method': paymentMethod,
+      };
+      
+      if (clientReference != null) body['client_reference'] = clientReference;
+      if (momoPhone != null && momoPhone.isNotEmpty) body['momo_phone'] = momoPhone;
+      if (notes != null && notes.isNotEmpty) body['notes'] = notes;
+      
       final response = await http.post(
         Uri.parse(ApiConfig.payments),
         headers: await _getHeaders(),
-        body: jsonEncode({
-          'contract': contractId,
-          'amount': amount.toString(),
-          'payment_method': paymentMethod,
-          'client_reference': clientReference,
-          'momo_phone': momoPhone,
-        }),
+        body: jsonEncode(body),
       ).timeout(ApiConfig.connectionTimeout);
       
-      return _handleResponse(response, (data) => Payment.fromJson(data));
+      return _handleResponse(response, (data) {
+        // Handle idempotent response
+        if (data is Map && data.containsKey('data')) {
+          return Payment.fromJson(data['data']);
+        }
+        return Payment.fromJson(data);
+      });
     } catch (e) {
       return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
     }

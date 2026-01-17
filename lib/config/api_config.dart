@@ -30,8 +30,8 @@ class ApiConfig {
   static String get categories => '$baseUrl/api/categories/';
   
   // Agent-specific endpoints
-  static String get agentDashboard => '$baseUrl/api/agents/dashboard/';
-  static String get agentCustomers => '$baseUrl/api/agents/customers/';
+  static String get agentDashboard => '$baseUrl/api/auth/agents/dashboard/';
+  static String get agentCustomers => '$baseUrl/api/customers/';
   
   // Payment endpoints (Paystack integration)
   static String get paymentInitiate => '$baseUrl/api/payments/initiate/';

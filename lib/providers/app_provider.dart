@@ -99,29 +99,36 @@ class AppProvider with ChangeNotifier {
   }
   
   /// Load all data (from local DB, then refresh from server if online)
-  Future<void> loadAllData({int? agentId}) async {
+  /// Set [forceRefresh] to true to always try to fetch from server
+  Future<void> loadAllData({int? agentId, bool forceRefresh = false}) async {
+    // Check connectivity before loading
+    final result = await Connectivity().checkConnectivity();
+    _isOnline = result.isNotEmpty && !result.contains(ConnectivityResult.none);
+    notifyListeners();
+    
     await Future.wait([
-      loadDashboard(agentId: agentId),
-      loadCustomers(agentId: agentId),
-      loadContracts(agentId: agentId),
-      loadPayments(agentId: agentId),
+      loadDashboard(agentId: agentId, forceRefresh: forceRefresh),
+      loadCustomers(agentId: agentId, forceRefresh: forceRefresh),
+      loadContracts(agentId: agentId, forceRefresh: forceRefresh),
+      loadPayments(agentId: agentId, forceRefresh: forceRefresh),
     ]);
   }
   
   /// Load dashboard data
-  Future<void> loadDashboard({int? agentId}) async {
+  Future<void> loadDashboard({int? agentId, bool forceRefresh = false}) async {
     _isLoadingDashboard = true;
     notifyListeners();
     
     try {
-      // Load from local DB first
-      _customerCount = await _db.getCustomerCount(agentId: agentId);
-      _pendingApprovals = await _db.getPendingApprovals(agentId: agentId);
-      _todayCollections = await _db.getTodayCollections(agentId: agentId);
-      _recentPayments = await _db.getPayments(agentId: agentId);
-      _recentPayments = _recentPayments.take(5).toList();
-      
-      notifyListeners();
+      // Load from local DB first (unless force refresh)
+      if (!forceRefresh) {
+        _customerCount = await _db.getCustomerCount(agentId: agentId);
+        _pendingApprovals = await _db.getPendingApprovals(agentId: agentId);
+        _todayCollections = await _db.getTodayCollections(agentId: agentId);
+        _recentPayments = await _db.getPayments(agentId: agentId);
+        _recentPayments = _recentPayments.take(5).toList();
+        notifyListeners();
+      }
       
       // Then try to fetch from server if online
       if (_isOnline) {
@@ -141,14 +148,18 @@ class AppProvider with ChangeNotifier {
   }
   
   /// Load customers
-  Future<void> loadCustomers({int? agentId}) async {
+  Future<void> loadCustomers({int? agentId, bool forceRefresh = false}) async {
     _isLoadingCustomers = true;
     notifyListeners();
     
     try {
-      _customers = await _db.getCustomers(agentId: agentId);
-      notifyListeners();
+      // Load from local DB first (unless force refresh)
+      if (!forceRefresh) {
+        _customers = await _db.getCustomers(agentId: agentId);
+        notifyListeners();
+      }
       
+      // Fetch from server if online
       if (_isOnline) {
         final response = await _api.getCustomers(agentId: agentId);
         if (response.success && response.data != null) {
@@ -156,6 +167,10 @@ class AppProvider with ChangeNotifier {
           _customers = response.data!;
           notifyListeners();
         }
+      } else if (forceRefresh) {
+        // If forcing refresh but offline, load from local DB
+        _customers = await _db.getCustomers(agentId: agentId);
+        notifyListeners();
       }
     } finally {
       _isLoadingCustomers = false;
@@ -164,14 +179,18 @@ class AppProvider with ChangeNotifier {
   }
   
   /// Load contracts
-  Future<void> loadContracts({int? agentId, ContractStatus? status}) async {
+  Future<void> loadContracts({int? agentId, ContractStatus? status, bool forceRefresh = false}) async {
     _isLoadingContracts = true;
     notifyListeners();
     
     try {
-      _contracts = await _db.getContracts(agentId: agentId, status: status);
-      notifyListeners();
+      // Load from local DB first (unless force refresh)
+      if (!forceRefresh) {
+        _contracts = await _db.getContracts(agentId: agentId, status: status);
+        notifyListeners();
+      }
       
+      // Fetch from server if online
       if (_isOnline) {
         final response = await _api.getContracts(
           agentId: agentId,
@@ -182,6 +201,10 @@ class AppProvider with ChangeNotifier {
           _contracts = response.data!;
           notifyListeners();
         }
+      } else if (forceRefresh) {
+        // If forcing refresh but offline, load from local DB
+        _contracts = await _db.getContracts(agentId: agentId, status: status);
+        notifyListeners();
       }
     } finally {
       _isLoadingContracts = false;
@@ -195,19 +218,24 @@ class AppProvider with ChangeNotifier {
     PaymentApprovalStatus? status,
     DateTime? fromDate,
     DateTime? toDate,
+    bool forceRefresh = false,
   }) async {
     _isLoadingPayments = true;
     notifyListeners();
     
     try {
-      _payments = await _db.getPayments(
-        agentId: agentId,
-        status: status,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
-      notifyListeners();
+      // Load from local DB first (unless force refresh)
+      if (!forceRefresh) {
+        _payments = await _db.getPayments(
+          agentId: agentId,
+          status: status,
+          fromDate: fromDate,
+          toDate: toDate,
+        );
+        notifyListeners();
+      }
       
+      // Fetch from server if online
       if (_isOnline) {
         final response = await _api.getPayments(
           agentId: agentId,
@@ -220,6 +248,15 @@ class AppProvider with ChangeNotifier {
           _payments = response.data!;
           notifyListeners();
         }
+      } else if (forceRefresh) {
+        // If forcing refresh but offline, load from local DB
+        _payments = await _db.getPayments(
+          agentId: agentId,
+          status: status,
+          fromDate: fromDate,
+          toDate: toDate,
+        );
+        notifyListeners();
       }
     } finally {
       _isLoadingPayments = false;
@@ -231,6 +268,53 @@ class AppProvider with ChangeNotifier {
   Future<List<Customer>> searchCustomers(String query) async {
     if (query.isEmpty) return _customers;
     return await _db.searchCustomers(query);
+  }
+
+  /// Create a new customer
+  Future<bool> createCustomer(Customer customer) async {
+    try {
+      // Save to local DB first
+      await _db.saveCustomer(customer);
+      
+      // Add to offline queue for sync
+      if (!_isOnline) {
+        await _db.addToOfflineQueue(
+          tableName: 'Customer',
+          operation: 'create',
+          uniqueField: 'local_unique_id',
+          uniqueFieldValue: customer.localUniqueId ?? '',
+          data: customer.toCreateJson().toString(),
+        );
+        await checkPendingSync();
+      }
+      
+      // Add to local list
+      _customers = [..._customers, customer];
+      notifyListeners();
+      
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Get customer by ID
+  Customer? getCustomerById(int customerId) {
+    try {
+      return _customers.firstWhere((c) => c.id == customerId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get contracts for a specific customer
+  List<Contract> getContractsForCustomer(int customerId) {
+    return _contracts.where((c) => c.customerId == customerId).toList();
+  }
+
+  /// Get payments for a specific customer
+  List<Payment> getPaymentsForCustomer(int customerId) {
+    return _payments.where((p) => p.customerId == customerId).toList();
   }
   
   /// Filter contracts by status

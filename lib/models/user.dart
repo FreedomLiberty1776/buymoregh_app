@@ -8,7 +8,10 @@ class User {
   final String lastName;
   final String? phoneNumber;
   final String? agentCode;
+  final String? assignedRegion;
   final bool isAgent;
+  final bool isAdmin;
+  final bool isSuperAdmin;
   final bool isActive;
   final bool isStaff;
   final Map<String, bool> permissions;
@@ -23,7 +26,10 @@ class User {
     required this.lastName,
     this.phoneNumber,
     this.agentCode,
+    this.assignedRegion,
     required this.isAgent,
+    this.isAdmin = false,
+    this.isSuperAdmin = false,
     required this.isActive,
     required this.isStaff,
     required this.permissions,
@@ -44,7 +50,10 @@ class User {
       lastName: json['last_name'] ?? '',
       phoneNumber: json['phone_number'],
       agentCode: json['agent_code'],
+      assignedRegion: json['assigned_region'],
       isAgent: json['is_agent'] ?? false,
+      isAdmin: json['is_admin'] ?? false,
+      isSuperAdmin: json['is_super_admin'] ?? false,
       isActive: json['is_active'] ?? true,
       isStaff: json['is_staff'] ?? false,
       permissions: Map<String, bool>.from(json['permissions'] ?? {}),
@@ -66,7 +75,10 @@ class User {
       'last_name': lastName,
       'phone_number': phoneNumber,
       'agent_code': agentCode,
+      'assigned_region': assignedRegion,
       'is_agent': isAgent,
+      'is_admin': isAdmin,
+      'is_super_admin': isSuperAdmin,
       'is_active': isActive,
       'is_staff': isStaff,
       'permissions': permissions,
@@ -85,7 +97,10 @@ class User {
       'last_name': lastName,
       'phone_number': phoneNumber,
       'agent_code': agentCode,
+      'assigned_region': assignedRegion,
       'is_agent': isAgent ? 1 : 0,
+      'is_admin': isAdmin ? 1 : 0,
+      'is_super_admin': isSuperAdmin ? 1 : 0,
       'is_active': isActive ? 1 : 0,
       'is_staff': isStaff ? 1 : 0,
       'permissions': permissions.toString(),
@@ -103,7 +118,10 @@ class User {
       lastName: json['last_name'] ?? '',
       phoneNumber: json['phone_number'],
       agentCode: json['agent_code'],
+      assignedRegion: json['assigned_region'],
       isAgent: json['is_agent'] == 1,
+      isAdmin: json['is_admin'] == 1,
+      isSuperAdmin: json['is_super_admin'] == 1,
       isActive: json['is_active'] == 1,
       isStaff: json['is_staff'] == 1,
       permissions: {},  // Parse from string if needed
@@ -124,7 +142,10 @@ class User {
     String? lastName,
     String? phoneNumber,
     String? agentCode,
+    String? assignedRegion,
     bool? isAgent,
+    bool? isAdmin,
+    bool? isSuperAdmin,
     bool? isActive,
     bool? isStaff,
     Map<String, bool>? permissions,
@@ -139,7 +160,10 @@ class User {
       lastName: lastName ?? this.lastName,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       agentCode: agentCode ?? this.agentCode,
+      assignedRegion: assignedRegion ?? this.assignedRegion,
       isAgent: isAgent ?? this.isAgent,
+      isAdmin: isAdmin ?? this.isAdmin,
+      isSuperAdmin: isSuperAdmin ?? this.isSuperAdmin,
       isActive: isActive ?? this.isActive,
       isStaff: isStaff ?? this.isStaff,
       permissions: permissions ?? this.permissions,

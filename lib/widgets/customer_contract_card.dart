@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../config/app_theme.dart';
 import '../models/contract.dart';
+import '../screens/customers/customer_detail_screen.dart';
 
 class CustomerContractCard extends StatelessWidget {
   final Contract contract;
   final VoidCallback? onTap;
+  final bool showNavigationHint;
 
   const CustomerContractCard({
     super.key,
     required this.contract,
     this.onTap,
+    this.showNavigationHint = true,
   });
 
   Color _getStatusColor() {
@@ -38,7 +41,17 @@ class CustomerContractCard extends StatelessWidget {
     final percentage = contract.paymentPercentage.clamp(0, 100);
 
     return InkWell(
-      onTap: onTap,
+      onTap: onTap ?? () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CustomerDetailScreen(
+              customerId: contract.customerId,
+              customerName: contract.customerName,
+            ),
+          ),
+        );
+      },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -139,6 +152,14 @@ class CustomerContractCard extends StatelessWidget {
                     color: AppTheme.textPrimary,
                   ),
                 ),
+                if (showNavigationHint) ...[
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: AppTheme.textHint,
+                    size: 20,
+                  ),
+                ],
               ],
             ),
           ],

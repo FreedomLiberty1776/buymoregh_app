@@ -4,10 +4,14 @@ import '../models/user.dart';
 import '../models/customer.dart';
 import '../models/contract.dart';
 import '../models/payment.dart';
+import 'local_db_migration.dart';
+import 'db_migration_methods.dart';
+import 'migrations_data.dart';
 
 /// Database helper for local SQLite storage
 /// 
 /// Implements offline-first pattern with sync tracking
+/// Uses a migration system for schema updates
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
@@ -16,7 +20,6 @@ class DatabaseHelper {
   
   DatabaseHelper._internal();
   
-  static const int _version = 1;
   static const String _dbName = 'buymoregh_agent.db';
   
   Future<Database> get database async {
@@ -29,155 +32,203 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), _dbName);
     return await openDatabase(
       path,
-      version: _version,
+      version: currentVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
   
-  Future<void> _onCreate(Database db, int version) async {
-    // User table
-    await db.execute('''
-      CREATE TABLE User (
-        id INTEGER PRIMARY KEY,
-        username TEXT NOT NULL,
-        email TEXT,
-        first_name TEXT,
-        last_name TEXT,
-        phone_number TEXT,
-        agent_code TEXT,
-        is_agent INTEGER DEFAULT 0,
-        is_active INTEGER DEFAULT 1,
-        is_staff INTEGER DEFAULT 0,
-        permissions TEXT,
-        date_joined TEXT,
-        last_login TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  /// Generates SQL CREATE TABLE statement from TableMigration
+  String _generateCreateTableSQL(TableMigration table) {
+    List<String> columns = [];
+
+    for (var field in table.fieldItems) {
+      // Skip removed fields
+      if (field.action == 'remove') continue;
+
+      String fieldDef = '${field.fieldName} ${getSQLiteType(field.type)}';
+
+      if (field.isPrimaryKey) {
+        fieldDef += ' PRIMARY KEY';
+        if (field.autoIncreasePrimaryKey) {
+          fieldDef += ' AUTOINCREMENT';
+        }
+      }
+
+      if (field.isUnique) {
+        fieldDef += ' UNIQUE';
+      }
+
+      if (field.defaultValue != null) {
+        fieldDef +=
+            ' DEFAULT ${getDefaultValue(field.type, field.defaultValue)}';
+      }
+
+      columns.add(fieldDef);
+    }
+
+    return '''
+      CREATE TABLE ${table.table} (
+        ${columns.join(',\n        ')}
       )
-    ''');
-    
-    // Customer table
-    await db.execute('''
-      CREATE TABLE Customer (
-        id INTEGER PRIMARY KEY,
-        full_name TEXT NOT NULL,
-        phone_number TEXT NOT NULL,
-        email TEXT,
-        address TEXT,
-        id_type TEXT,
-        id_number TEXT,
-        profile_photo TEXT,
-        agent_id INTEGER,
-        created_at TEXT,
-        updated_at TEXT,
-        is_synced INTEGER DEFAULT 1,
-        local_unique_id TEXT UNIQUE
-      )
-    ''');
-    
-    // Contract table
-    await db.execute('''
-      CREATE TABLE Contract (
-        id INTEGER PRIMARY KEY,
-        customer_id INTEGER NOT NULL,
-        customer_name TEXT,
-        product_id INTEGER NOT NULL,
-        product_name TEXT,
-        agent_id INTEGER,
-        total_amount REAL NOT NULL,
-        down_payment REAL DEFAULT 0,
-        total_paid REAL DEFAULT 0,
-        outstanding_balance REAL DEFAULT 0,
-        payment_percentage REAL DEFAULT 0,
-        duration_months INTEGER DEFAULT 12,
-        interest_rate REAL DEFAULT 0,
-        status TEXT DEFAULT 'ACTIVE',
-        start_date TEXT,
-        end_date TEXT,
-        next_payment_date TEXT,
-        monthly_installment REAL DEFAULT 0,
-        created_at TEXT,
-        updated_at TEXT,
-        is_synced INTEGER DEFAULT 1,
-        local_unique_id TEXT UNIQUE,
-        FOREIGN KEY (customer_id) REFERENCES Customer (id)
-      )
-    ''');
-    
-    // Payment table
-    await db.execute('''
-      CREATE TABLE Payment (
-        id INTEGER PRIMARY KEY,
-        contract_id INTEGER NOT NULL,
-        customer_id INTEGER NOT NULL,
-        customer_name TEXT,
-        agent_id INTEGER,
-        amount REAL NOT NULL,
-        payment_method TEXT DEFAULT 'CASH',
-        momo_phone TEXT,
-        approval_status TEXT DEFAULT 'PENDING',
-        rejection_reason TEXT,
-        approved_at TEXT,
-        approved_by INTEGER,
-        client_reference TEXT UNIQUE,
-        paystack_reference TEXT,
-        paystack_status TEXT,
-        payment_date TEXT,
-        created_at TEXT,
-        updated_at TEXT,
-        contract_outstanding_balance REAL,
-        contract_total_paid REAL,
-        contract_payment_percentage REAL,
-        is_synced INTEGER DEFAULT 1,
-        local_unique_id TEXT UNIQUE,
-        FOREIGN KEY (contract_id) REFERENCES Contract (id),
-        FOREIGN KEY (customer_id) REFERENCES Customer (id)
-      )
-    ''');
-    
-    // Offline Queue table for sync
-    await db.execute('''
-      CREATE TABLE OfflineQueue (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        table_name TEXT NOT NULL,
-        operation TEXT NOT NULL,
-        unique_field TEXT NOT NULL,
-        unique_field_value TEXT NOT NULL,
-        data TEXT,
-        status TEXT DEFAULT 'pending',
-        retry_count INTEGER DEFAULT 0,
-        error_message TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    ''');
-    
-    // Auth tokens table
-    await db.execute('''
-      CREATE TABLE AuthToken (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        access_token TEXT NOT NULL,
-        refresh_token TEXT NOT NULL,
-        expires_at TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    ''');
-    
-    // Create indexes for better performance
-    await db.execute('CREATE INDEX idx_customer_agent ON Customer(agent_id)');
-    await db.execute('CREATE INDEX idx_contract_customer ON Contract(customer_id)');
-    await db.execute('CREATE INDEX idx_contract_agent ON Contract(agent_id)');
-    await db.execute('CREATE INDEX idx_contract_status ON Contract(status)');
-    await db.execute('CREATE INDEX idx_payment_contract ON Payment(contract_id)');
-    await db.execute('CREATE INDEX idx_payment_customer ON Payment(customer_id)');
-    await db.execute('CREATE INDEX idx_payment_status ON Payment(approval_status)');
-    await db.execute('CREATE INDEX idx_payment_date ON Payment(payment_date)');
-    await db.execute('CREATE INDEX idx_offline_queue_status ON OfflineQueue(status)');
+    ''';
+  }
+
+  /// Updates initialMigration based on subsequent migrations
+  List<TableMigration> _applyMigrationsToInitialSchema(
+      List<TableMigration> initialSchema,
+      List<List<TableMigration>> allMigrations) {
+    List<TableMigration> updatedSchema =
+        List<TableMigration>.from(initialSchema);
+
+    for (List<TableMigration> migrationSet in allMigrations) {
+      for (TableMigration migration in migrationSet) {
+        // Find existing table or create new one
+        int tableIndex =
+            updatedSchema.indexWhere((t) => t.table == migration.table);
+
+        if (tableIndex == -1) {
+          // New table - add to schema
+          updatedSchema.add(migration);
+          continue;
+        }
+
+        // Update existing table
+        TableMigration existingTable = updatedSchema[tableIndex];
+        List<FieldItem> updatedFields =
+            List<FieldItem>.from(existingTable.fieldItems);
+
+        for (FieldItem field in migration.fieldItems) {
+          switch (field.action) {
+            case 'add':
+              updatedFields.add(field);
+              break;
+            case 'remove':
+              updatedFields.removeWhere((f) => f.fieldName == field.fieldName);
+              break;
+            case 'rename':
+              int index =
+                  updatedFields.indexWhere((f) => f.fieldName == field.oldName);
+              if (index != -1) {
+                updatedFields[index] = field;
+              }
+              break;
+            case 'modify':
+              int index = updatedFields
+                  .indexWhere((f) => f.fieldName == field.fieldName);
+              if (index != -1) {
+                updatedFields[index] = field;
+              }
+              break;
+          }
+        }
+
+        updatedSchema[tableIndex] = TableMigration(
+          table: migration.table,
+          migrationVersion: 1,
+          fieldItems: updatedFields,
+        );
+      }
+    }
+
+    return updatedSchema;
   }
   
+  Future<void> _onCreate(Database db, int version) async {
+    try {
+      // Apply all migrations to initial schema
+      List<TableMigration> finalSchema =
+          _applyMigrationsToInitialSchema(initialMigration, migrations);
+
+      // Create tables
+      for (TableMigration table in finalSchema) {
+        await db.execute(_generateCreateTableSQL(table));
+      }
+      
+      // Create indexes for better performance
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_customer_agent ON Customer(agent_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_customer_registered_by ON Customer(registered_by_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_contract_customer ON Contract(customer_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_contract_agent ON Contract(agent_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_contract_status ON Contract(status)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_contract ON Payment(contract_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_customer ON Payment(customer_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_status ON Payment(approval_status)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_date ON Payment(payment_date)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_offline_queue_status ON OfflineQueue(status)');
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  /// Handles database upgrades
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Handle migrations here for future versions
+    try {
+      // Apply upgrades version by version
+      for (int version = oldVersion + 1; version <= newVersion; version++) {
+        if (version - 2 >= 0 && version - 2 < migrations.length) {
+          List<TableMigration> migrationSet = migrations[version - 2];
+
+          for (TableMigration migration in migrationSet) {
+            // Check if this is a new table
+            bool tableExists = await _checkIfTableExists(db, migration.table);
+
+            if (!tableExists) {
+              // Create new table
+              await db.execute(_generateCreateTableSQL(migration));
+            } else if (!deletedTables.contains(migration.table)) {
+              // Handle modifications to existing table
+              await _handleTableMigration(db, migration);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Checks if a table exists in the database
+  Future<bool> _checkIfTableExists(Database db, String tableName) async {
+    var result = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        [tableName]);
+    return result.isNotEmpty;
+  }
+
+  /// Handles migration for a single table
+  Future<void> _handleTableMigration(
+      Database db, TableMigration migration) async {
+    // Skip if table is marked for deletion
+    if (deletedTables.contains(migration.table)) {
+      return;
+    }
+
+    // Check if there are any actual changes to make
+    bool hasChanges = migration.fieldItems.any((field) =>
+        field.action == 'add' ||
+        field.action == 'remove' ||
+        field.action == 'rename' ||
+        field.action == 'modify');
+
+    if (!hasChanges) {
+      return;
+    }
+
+    List<String> sqlStatements = generateTableModificationSQL(migration, []);
+
+    if (sqlStatements.isEmpty) {
+      return;
+    }
+
+    for (String sql in sqlStatements) {
+      try {
+        await db.execute(sql);
+      } catch (e) {
+        // Column might already exist, continue
+        print('Migration warning: $e');
+      }
+    }
   }
   
   // ==================== USER OPERATIONS ====================
@@ -231,7 +282,9 @@ class DatabaseHelper {
     final db = await database;
     List<Map<String, dynamic>> maps;
     if (agentId != null) {
-      maps = await db.query('Customer', where: 'agent_id = ?', whereArgs: [agentId]);
+      maps = await db.query('Customer', 
+        where: 'agent_id = ? OR registered_by_id = ?', 
+        whereArgs: [agentId, agentId]);
     } else {
       maps = await db.query('Customer');
     }
@@ -249,8 +302,8 @@ class DatabaseHelper {
     final db = await database;
     final maps = await db.query(
       'Customer',
-      where: 'full_name LIKE ? OR phone_number LIKE ?',
-      whereArgs: ['%$query%', '%$query%'],
+      where: 'full_name LIKE ? OR phone_number LIKE ? OR customer_number LIKE ?',
+      whereArgs: ['%$query%', '%$query%', '%$query%'],
     );
     return maps.map((e) => Customer.fromLocalJson(e)).toList();
   }
@@ -378,6 +431,29 @@ class DatabaseHelper {
       where: conditions.isNotEmpty ? conditions.join(' AND ') : null,
       whereArgs: args.isNotEmpty ? args : null,
       orderBy: 'payment_date DESC',
+    );
+    return maps.map((e) => Payment.fromLocalJson(e)).toList();
+  }
+  
+  Future<List<Payment>> getPaymentsByContract(int contractId) async {
+    final db = await database;
+    final maps = await db.query(
+      'Payment',
+      where: 'contract_id = ?',
+      whereArgs: [contractId],
+      orderBy: 'payment_date DESC',
+    );
+    return maps.map((e) => Payment.fromLocalJson(e)).toList();
+  }
+  
+  Future<List<Payment>> getPaymentsByCustomer(int customerId) async {
+    final db = await database;
+    final maps = await db.query(
+      'Payment',
+      where: 'customer_id = ?',
+      whereArgs: [customerId],
+      orderBy: 'payment_date DESC',
+      limit: 10,
     );
     return maps.map((e) => Payment.fromLocalJson(e)).toList();
   }
@@ -556,5 +632,14 @@ class DatabaseHelper {
     await db.delete('User');
     await db.delete('OfflineQueue');
     await db.delete('AuthToken');
+  }
+  
+  /// Force database reset - useful for development
+  /// WARNING: This deletes all data!
+  Future<void> resetDatabase() async {
+    String path = join(await getDatabasesPath(), _dbName);
+    await deleteDatabase(path);
+    _database = null;
+    await database; // Recreate database
   }
 }

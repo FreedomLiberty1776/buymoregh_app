@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/app_provider.dart';
 import '../../models/payment.dart';
 import '../../widgets/payment_list_item.dart';
+import '../payments/payment_detail_screen.dart';
 
 enum TimeFilter { today, thisWeek, thisMonth }
 enum PercentageFilter { all, lessThan50, between50And70, moreThan70 }
@@ -67,7 +68,7 @@ class _CollectionsTabState extends State<CollectionsTab> {
         child: RefreshIndicator(
           onRefresh: () async {
             final agentId = authProvider.user?.id;
-            await appProvider.loadPayments(agentId: agentId);
+            await appProvider.loadPayments(agentId: agentId, forceRefresh: true);
           },
           child: CustomScrollView(
             slivers: [
@@ -249,6 +250,14 @@ class _CollectionsTabState extends State<CollectionsTab> {
                         return PaymentListItem(
                           payment: payment,
                           showPercentage: true,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PaymentDetailScreen(payment: payment),
+                              ),
+                            );
+                          },
                         );
                       },
                       childCount: filteredPayments.length,
