@@ -409,6 +409,17 @@ class _CustomerCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Customer number as first line (if available)
+                  if (customer.customerNumber != null && customer.customerNumber!.isNotEmpty) ...[
+                    Text(
+                      customer.customerNumber!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
                   Text(
                     customer.fullName,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(

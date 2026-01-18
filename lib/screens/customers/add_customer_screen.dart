@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../config/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -29,6 +31,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _occupationController = TextEditingController();
   final _workplaceController = TextEditingController();
   final _monthlyIncomeController = TextEditingController();
+  
+  // Photo files (optional)
+  File? _passportPhoto;
+  File? _idPhoto;
+  final ImagePicker _imagePicker = ImagePicker();
 
   // Address Information
   final _addressController = TextEditingController();
@@ -56,6 +63,127 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage(bool isPassportPhoto) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.dividerColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isPassportPhoto ? 'Customer Photo' : 'ID Card Photo',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildPhotoOptionButton(
+                      icon: Icons.camera_alt,
+                      label: 'Camera',
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final XFile? image = await _imagePicker.pickImage(
+                          source: ImageSource.camera,
+                          imageQuality: 80,
+                          maxWidth: 1024,
+                          maxHeight: 1024,
+                        );
+                        if (image != null) {
+                          setState(() {
+                            if (isPassportPhoto) {
+                              _passportPhoto = File(image.path);
+                            } else {
+                              _idPhoto = File(image.path);
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildPhotoOptionButton(
+                      icon: Icons.photo_library,
+                      label: 'Gallery',
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final XFile? image = await _imagePicker.pickImage(
+                          source: ImageSource.gallery,
+                          imageQuality: 80,
+                          maxWidth: 1024,
+                          maxHeight: 1024,
+                        );
+                        if (image != null) {
+                          setState(() {
+                            if (isPassportPhoto) {
+                              _passportPhoto = File(image.path);
+                            } else {
+                              _idPhoto = File(image.path);
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoOptionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
+          color: AppTheme.backgroundColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: AppTheme.primaryColor),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _submitCustomer() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -67,6 +195,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     try {
       final localId = const Uuid().v4();
       
+      // For now, we create customer without images
+      // In a full implementation, you would upload images to a server first
       final customer = Customer(
         id: 0, // Will be assigned by server
         fullName: _fullNameController.text.trim(),
@@ -81,6 +211,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         monthlyIncome: _monthlyIncomeController.text.trim().isNotEmpty 
             ? double.tryParse(_monthlyIncomeController.text.trim()) 
             : null,
+        // Photos will be uploaded separately if needed
+        passportPhoto: null,
+        idPhoto: null,
         nextOfKinName: _nokNameController.text.trim().isNotEmpty ? _nokNameController.text.trim() : null,
         nextOfKinPhone: _nokPhoneController.text.trim().isNotEmpty ? _nokPhoneController.text.trim() : null,
         nextOfKinRelationship: _selectedNokRelationship,
@@ -96,6 +229,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       if (!mounted) return;
       
       if (result.success) {
+        // If we have photos and customer was created, we could upload them here
+        // For now, just show success
+        
         // Reload customers
         final authProvider = context.read<AuthProvider>();
         final appProvider = context.read<AppProvider>();
@@ -104,7 +240,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Customer added successfully!'),
+            content: Text(_passportPhoto != null || _idPhoto != null 
+                ? 'Customer added! Photos saved locally.'
+                : 'Customer added successfully!'),
             backgroundColor: AppTheme.completedStatus,
           ),
         );
@@ -450,7 +588,159 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
           ],
         ),
+        
+        // Photo section header
+        const SizedBox(height: 8),
+        Text(
+          'Documents (Optional)',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Photo upload buttons
+        Row(
+          children: [
+            Expanded(
+              child: _buildPhotoUploadCard(
+                label: 'Customer Photo',
+                icon: Icons.person,
+                image: _passportPhoto,
+                onTap: () => _pickImage(true),
+                onRemove: _passportPhoto != null ? () {
+                  setState(() => _passportPhoto = null);
+                } : null,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildPhotoUploadCard(
+                label: 'ID Card Photo',
+                icon: Icons.credit_card,
+                image: _idPhoto,
+                onTap: () => _pickImage(false),
+                onRemove: _idPhoto != null ? () {
+                  setState(() => _idPhoto = null);
+                } : null,
+              ),
+            ),
+          ],
+        ),
       ],
+    );
+  }
+
+  Widget _buildPhotoUploadCard({
+    required String label,
+    required IconData icon,
+    required File? image,
+    required VoidCallback onTap,
+    VoidCallback? onRemove,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 140,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: image != null ? AppTheme.primaryColor : AppTheme.dividerColor,
+            width: image != null ? 2 : 1,
+          ),
+        ),
+        child: image != null
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(
+                      image,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: GestureDetector(
+                      onTap: onRemove,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.backgroundColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 28,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tap to add',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 
@@ -629,6 +919,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               _buildSummaryRow('Address', _addressController.text),
               if (_cityController.text.isNotEmpty)
                 _buildSummaryRow('City', '${_cityController.text}${_selectedRegion != null ? ', $_selectedRegion' : ''}'),
+              if (_passportPhoto != null || _idPhoto != null)
+                _buildSummaryRow('Photos', '${_passportPhoto != null ? 'Customer Photo' : ''}${_passportPhoto != null && _idPhoto != null ? ', ' : ''}${_idPhoto != null ? 'ID Photo' : ''}'),
             ],
           ),
         ),

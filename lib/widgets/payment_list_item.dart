@@ -6,12 +6,18 @@ import '../models/payment.dart';
 class PaymentListItem extends StatelessWidget {
   final Payment payment;
   final bool showPercentage;
+  final bool showStatus;
+  final bool showCustomerNumber;
+  final bool showProductName;
   final VoidCallback? onTap;
 
   const PaymentListItem({
     super.key,
     required this.payment,
     this.showPercentage = false,
+    this.showStatus = true,
+    this.showCustomerNumber = true,
+    this.showProductName = true,
     this.onTap,
   });
 
@@ -36,10 +42,28 @@ class PaymentListItem extends StatelessWidget {
     return AppTheme.errorColor;
   }
 
+  Color _getStatusColor(PaymentApprovalStatus status) {
+    switch (status) {
+      case PaymentApprovalStatus.approved:
+        return AppTheme.successColor;
+      case PaymentApprovalStatus.pending:
+        return AppTheme.warningColor;
+      case PaymentApprovalStatus.rejected:
+        return AppTheme.errorColor;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(symbol: 'GHS ', decimalDigits: 2);
     final percentage = payment.contractPaymentPercentage ?? 0;
+    final statusColor = _getStatusColor(payment.approvalStatus);
+
+    // Build customer display name with customer number
+    String customerDisplay = payment.customerName;
+    if (showCustomerNumber && payment.customerNumber != null && payment.customerNumber!.isNotEmpty) {
+      customerDisplay = '${payment.customerName} (${payment.customerNumber})';
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -53,37 +77,41 @@ class PaymentListItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Row(
           children: [
-            // Avatar
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryLight.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  payment.customerName.isNotEmpty
-                      ? payment.customerName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+            // Avatar with status indicator
+            Stack(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      payment.customerName.isNotEmpty
+                          ? payment.customerName[0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
             
             const SizedBox(width: 12),
             
-            // Name and Time
+            // Name, Product, Time and Status
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    payment.customerName,
+                    customerDisplay,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -91,15 +119,53 @@ class PaymentListItem extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    _formatTime(payment.paymentDate),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textSecondary,
+                  // Product name if available
+                  if (showProductName && payment.productName != null && payment.productName!.isNotEmpty) ...[
+                    Text(
+                      payment.productName!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _formatTime(payment.paymentDate),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                      if (showStatus) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            payment.approvalStatus.displayName,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
+            
+            const SizedBox(width: 8),
             
             // Amount and Percentage
             Column(
@@ -109,7 +175,7 @@ class PaymentListItem extends StatelessWidget {
                   currencyFormat.format(payment.amount),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                    color: statusColor,
                   ),
                 ),
                 if (showPercentage) ...[

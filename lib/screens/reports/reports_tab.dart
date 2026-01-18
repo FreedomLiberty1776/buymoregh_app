@@ -141,53 +141,55 @@ class ReportsTab extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     // Logout Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Logout'),
-                              content: const Text(
-                                'Are you sure you want to logout? Any unsynced data will be preserved.',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: AppTheme.errorColor,
-                                  ),
-                                  child: const Text('Logout'),
-                                ),
-                              ],
-                            ),
-                          );
+                    // SizedBox(
+                    //   width: double.infinity,
+                    //   child: OutlinedButton.icon(
+                    //     onPressed: () async {
+                    //       final confirm = await showDialog<bool>(
+                    //         context: context,
+                    //         builder: (context) => AlertDialog(
+                    //           title: const Text('Logout'),
+                    //           content: const Text(
+                    //             'Are you sure you want to logout? Any unsynced data will be preserved.',
+                    //           ),
+                    //           actions: [
+                    //             TextButton(
+                    //               onPressed: () => Navigator.pop(context, false),
+                    //               child: const Text('Cancel'),
+                    //             ),
+                    //             TextButton(
+                    //               onPressed: () => Navigator.pop(context, true),
+                    //               style: TextButton.styleFrom(
+                    //                 foregroundColor: AppTheme.errorColor,
+                    //               ),
+                    //               child: const Text('Logout'),
+                    //             ),
+                    //           ],
+                    //         ),
+                    //       );
 
-                          if (confirm == true && context.mounted) {
-                            await authProvider.logout();
-                            if (context.mounted) {
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => const LoginScreen(),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        icon: const Icon(Icons.logout),
-                        label: const Text('Logout'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.errorColor,
-                          side: const BorderSide(color: AppTheme.errorColor),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ),
+                    //       if (confirm == true && context.mounted) {
+                    //         await authProvider.logout();
+                    //         if (context.mounted) {
+                    //           Navigator.of(context).pushReplacement(
+                    //             MaterialPageRoute(
+                    //               builder: (_) => const LoginScreen(),
+                    //             ),
+                    //           );
+                    //         }
+                    //       }
+                    //     },
+                    //     icon: const Icon(Icons.logout),
+                    //     label: const Text('Logout'),
+                    //     style: OutlinedButton.styleFrom(
+                    //       foregroundColor: AppTheme.errorColor,
+                    //       side: const BorderSide(color: AppTheme.errorColor),
+                    //       padding: const EdgeInsets.symmetric(vertical: 14),
+                    //     ),
+                    //   ),
+                    // ),
+                  
+                  
                   ],
                 ),
               ),

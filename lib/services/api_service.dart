@@ -262,6 +262,37 @@ class ApiService {
       return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
     }
   }
+
+  /// Get payments for a specific contract
+  Future<ApiResponse<List<Payment>>> getPaymentsForContract(int contractId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.payments}?contract=$contractId'),
+        headers: await _getHeaders(),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      return _handleResponse(response, (data) {
+        final List<dynamic> results = data['results'] ?? data;
+        return results.map((e) => Payment.fromJson(e)).toList();
+      });
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
+  /// Get a single contract by ID
+  Future<ApiResponse<Contract>> getContract(int contractId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.contracts}$contractId/'),
+        headers: await _getHeaders(),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      return _handleResponse(response, (data) => Contract.fromJson(data));
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
   
   // ==================== CONTRACTS ====================
   

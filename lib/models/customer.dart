@@ -147,6 +147,8 @@ class Customer {
     if (occupation != null && occupation!.isNotEmpty) json['occupation'] = occupation;
     if (workplace != null && workplace!.isNotEmpty) json['workplace'] = workplace;
     if (monthlyIncome != null) json['monthly_income'] = monthlyIncome.toString();
+    if (passportPhoto != null && passportPhoto!.isNotEmpty) json['passport_photo'] = passportPhoto;
+    if (idPhoto != null && idPhoto!.isNotEmpty) json['id_photo'] = idPhoto;
     if (localUniqueId != null) json['client_reference'] = localUniqueId;
     
     return json;

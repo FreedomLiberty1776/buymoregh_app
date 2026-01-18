@@ -7,8 +7,8 @@ import '../../models/payment.dart';
 import '../../widgets/payment_list_item.dart';
 import '../payments/payment_detail_screen.dart';
 
-enum TimeFilter { today, thisWeek, thisMonth }
-enum PercentageFilter { all, lessThan50, between50And70, moreThan70 }
+enum TimeFilter { all, today, thisWeek, thisMonth, thisYear, custom }
+enum StatusFilter { all, approved, pending, rejected }
 
 class CollectionsTab extends StatefulWidget {
   const CollectionsTab({super.key});
@@ -18,18 +18,61 @@ class CollectionsTab extends StatefulWidget {
 }
 
 class _CollectionsTabState extends State<CollectionsTab> {
-  TimeFilter _timeFilter = TimeFilter.today;
-  PercentageFilter _percentageFilter = PercentageFilter.all;
+  TimeFilter _timeFilter = TimeFilter.all;
+  StatusFilter _statusFilter = StatusFilter.all;
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
 
-  DateTime get _fromDate {
+  DateTime? get _fromDate {
     final now = DateTime.now();
     switch (_timeFilter) {
+      case TimeFilter.all:
+        return null;
       case TimeFilter.today:
         return DateTime(now.year, now.month, now.day);
       case TimeFilter.thisWeek:
         return now.subtract(Duration(days: now.weekday - 1));
       case TimeFilter.thisMonth:
         return DateTime(now.year, now.month, 1);
+      case TimeFilter.thisYear:
+        return DateTime(now.year, 1, 1);
+      case TimeFilter.custom:
+        return _customStartDate;
+    }
+  }
+
+  DateTime? get _toDate {
+    if (_timeFilter == TimeFilter.custom) {
+      return _customEndDate;
+    }
+    return null;
+  }
+
+  Future<void> _selectCustomDateRange() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: _customStartDate != null && _customEndDate != null
+          ? DateTimeRange(start: _customStartDate!, end: _customEndDate!)
+          : null,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppTheme.primaryColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _customStartDate = picked.start;
+        _customEndDate = picked.end;
+        _timeFilter = TimeFilter.custom;
+      });
     }
   }
 
@@ -37,22 +80,32 @@ class _CollectionsTabState extends State<CollectionsTab> {
     return payments.where((payment) {
       // Time filter
       final paymentDate = payment.paymentDate;
-      if (paymentDate.isBefore(_fromDate)) {
+      final fromDate = _fromDate;
+      final toDate = _toDate;
+      
+      if (fromDate != null && paymentDate.isBefore(fromDate)) {
+        return false;
+      }
+      if (toDate != null && paymentDate.isAfter(toDate.add(const Duration(days: 1)))) {
         return false;
       }
 
-      // Percentage filter
-      final percentage = payment.contractPaymentPercentage ?? 0;
-      switch (_percentageFilter) {
-        case PercentageFilter.all:
-          return true;
-        case PercentageFilter.lessThan50:
-          return percentage < 50;
-        case PercentageFilter.between50And70:
-          return percentage >= 50 && percentage <= 70;
-        case PercentageFilter.moreThan70:
-          return percentage > 70;
+      // Status filter
+      switch (_statusFilter) {
+        case StatusFilter.all:
+          break;
+        case StatusFilter.approved:
+          if (payment.approvalStatus != PaymentApprovalStatus.approved) return false;
+          break;
+        case StatusFilter.pending:
+          if (payment.approvalStatus != PaymentApprovalStatus.pending) return false;
+          break;
+        case StatusFilter.rejected:
+          if (payment.approvalStatus != PaymentApprovalStatus.rejected) return false;
+          break;
       }
+
+      return true;
     }).toList();
   }
 
@@ -110,7 +163,7 @@ class _CollectionsTabState extends State<CollectionsTab> {
                 ),
               ),
 
-              // Time Filter Chips
+              // Period Filter Chips
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -118,7 +171,17 @@ class _CollectionsTabState extends State<CollectionsTab> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _TimeFilterChip(
+                        _FilterChip(
+                          label: 'All Time',
+                          selected: _timeFilter == TimeFilter.all,
+                          onTap: () {
+                            setState(() {
+                              _timeFilter = TimeFilter.all;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _FilterChip(
                           label: 'Today',
                           selected: _timeFilter == TimeFilter.today,
                           onTap: () {
@@ -128,7 +191,7 @@ class _CollectionsTabState extends State<CollectionsTab> {
                           },
                         ),
                         const SizedBox(width: 8),
-                        _TimeFilterChip(
+                        _FilterChip(
                           label: 'This Week',
                           selected: _timeFilter == TimeFilter.thisWeek,
                           onTap: () {
@@ -138,7 +201,7 @@ class _CollectionsTabState extends State<CollectionsTab> {
                           },
                         ),
                         const SizedBox(width: 8),
-                        _TimeFilterChip(
+                        _FilterChip(
                           label: 'This Month',
                           selected: _timeFilter == TimeFilter.thisMonth,
                           onTap: () {
@@ -147,13 +210,32 @@ class _CollectionsTabState extends State<CollectionsTab> {
                             });
                           },
                         ),
+                        const SizedBox(width: 8),
+                        _FilterChip(
+                          label: 'This Year',
+                          selected: _timeFilter == TimeFilter.thisYear,
+                          onTap: () {
+                            setState(() {
+                              _timeFilter = TimeFilter.thisYear;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _FilterChip(
+                          label: _timeFilter == TimeFilter.custom && _customStartDate != null
+                              ? '${_customStartDate!.day}/${_customStartDate!.month} - ${_customEndDate?.day}/${_customEndDate?.month}'
+                              : 'Custom',
+                          selected: _timeFilter == TimeFilter.custom,
+                          icon: Icons.calendar_today,
+                          onTap: _selectCustomDateRange,
+                        ),
                       ],
                     ),
                   ),
                 ),
               ),
 
-              // Percentage Filter Chips
+              // Status Filter Chips
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -161,42 +243,45 @@ class _CollectionsTabState extends State<CollectionsTab> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _PercentageFilterChip(
+                        _StatusFilterChip(
                           label: 'All',
-                          selected: _percentageFilter == PercentageFilter.all,
+                          selected: _statusFilter == StatusFilter.all,
                           onTap: () {
                             setState(() {
-                              _percentageFilter = PercentageFilter.all;
+                              _statusFilter = StatusFilter.all;
                             });
                           },
                         ),
                         const SizedBox(width: 8),
-                        _PercentageFilterChip(
-                          label: '<50%',
-                          selected: _percentageFilter == PercentageFilter.lessThan50,
+                        _StatusFilterChip(
+                          label: 'Approved',
+                          selected: _statusFilter == StatusFilter.approved,
+                          color: AppTheme.successColor,
                           onTap: () {
                             setState(() {
-                              _percentageFilter = PercentageFilter.lessThan50;
+                              _statusFilter = StatusFilter.approved;
                             });
                           },
                         ),
                         const SizedBox(width: 8),
-                        _PercentageFilterChip(
-                          label: '50-70%',
-                          selected: _percentageFilter == PercentageFilter.between50And70,
+                        _StatusFilterChip(
+                          label: 'Pending',
+                          selected: _statusFilter == StatusFilter.pending,
+                          color: AppTheme.warningColor,
                           onTap: () {
                             setState(() {
-                              _percentageFilter = PercentageFilter.between50And70;
+                              _statusFilter = StatusFilter.pending;
                             });
                           },
                         ),
                         const SizedBox(width: 8),
-                        _PercentageFilterChip(
-                          label: '>70%',
-                          selected: _percentageFilter == PercentageFilter.moreThan70,
+                        _StatusFilterChip(
+                          label: 'Rejected',
+                          selected: _statusFilter == StatusFilter.rejected,
+                          color: AppTheme.errorColor,
                           onTap: () {
                             setState(() {
-                              _percentageFilter = PercentageFilter.moreThan70;
+                              _statusFilter = StatusFilter.rejected;
                             });
                           },
                         ),
@@ -272,14 +357,16 @@ class _CollectionsTabState extends State<CollectionsTab> {
   }
 }
 
-class _TimeFilterChip extends StatelessWidget {
+class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
+  final IconData? icon;
   final VoidCallback onTap;
 
-  const _TimeFilterChip({
+  const _FilterChip({
     required this.label,
     required this.selected,
+    this.icon,
     required this.onTap,
   });
 
@@ -288,7 +375,7 @@ class _TimeFilterChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? AppTheme.primaryColor : Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -296,51 +383,84 @@ class _TimeFilterChip extends StatelessWidget {
             color: selected ? AppTheme.primaryColor : AppTheme.dividerColor,
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: selected ? Colors.white : AppTheme.textPrimary,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 14,
+                color: selected ? Colors.white : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: selected ? Colors.white : AppTheme.textPrimary,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _PercentageFilterChip extends StatelessWidget {
+class _StatusFilterChip extends StatelessWidget {
   final String label;
   final bool selected;
+  final Color? color;
   final VoidCallback onTap;
 
-  const _PercentageFilterChip({
+  const _StatusFilterChip({
     required this.label,
     required this.selected,
+    this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final chipColor = color ?? AppTheme.primaryColor;
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: selected ? chipColor.withOpacity(0.15) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : AppTheme.dividerColor,
+            color: selected ? chipColor : AppTheme.dividerColor,
             width: selected ? 2 : 1,
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? AppTheme.primaryColor : AppTheme.textPrimary,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (color != null) ...[
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: chipColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? chipColor : AppTheme.textPrimary,
+              ),
+            ),
+          ],
         ),
       ),
     );

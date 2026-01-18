@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Buymoregh Agent</string>
+	<string>Buymore Agent</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>buymoregh_agent</string>
+	<string>Buymore Agent</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -46,6 +46,12 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Use Face ID to unlock BuyMore Agent</string>
+	<string>Use Face ID to unlock Buymore Agent</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Buymore Agent needs camera access to take photos of customers and documents</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Buymore Agent needs photo library access to select photos of customers and documents</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Buymore Agent needs permission to save photos to your photo library</string>
 </dict>
 </plist>

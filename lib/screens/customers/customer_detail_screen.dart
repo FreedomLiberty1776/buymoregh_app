@@ -9,6 +9,7 @@ import '../../models/contract.dart';
 import '../../models/payment.dart';
 import '../../services/api_service.dart';
 import '../contracts/add_payment_screen.dart';
+import '../contracts/contract_detail_screen.dart';
 import '../payments/payment_detail_screen.dart';
 
 class CustomerDetailScreen extends StatefulWidget {
@@ -105,7 +106,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {                       
     final currencyFormat = NumberFormat.currency(symbol: 'GHS ', decimalDigits: 2);
     final dateFormat = DateFormat('dd MMM yyyy');
 
@@ -332,13 +333,23 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
     final authProvider = context.read<AuthProvider>();
     final appProvider = context.read<AppProvider>();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ContractDetailScreen(contract: contract),
+          ),
+        ).then((_) => _loadCustomerData());
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Product and Status
@@ -375,50 +386,45 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
           const SizedBox(height: 12),
           
           // Amounts
-          Row(
+          Column(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Amount',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total Amount',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textSecondary,
                     ),
-                    Text(
-                      currencyFormat.format(contract.totalAmount),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  ),
+                  Text(
+                    currencyFormat.format(contract.totalAmount),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Paid',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Paid',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textSecondary,
                     ),
-                    Text(
-                      currencyFormat.format(contract.totalPaid),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.completedStatus,
-                      ),
+                  ),
+                  Text(
+                    currencyFormat.format(contract.totalPaid),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.completedStatus,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Balance',
@@ -437,7 +443,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                     ),
                   ],
                 ),
-              ),
+              
             ],
           ),
           
@@ -505,6 +511,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
             ),
           ],
         ],
+        ),
       ),
     );
   }
@@ -566,6 +573,18 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  // Show product name if available
+                  if (payment.productName != null && payment.productName!.isNotEmpty) ...[
+                    Text(
+                      payment.productName!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   Text(
                     '${dateFormat.format(payment.paymentDate)} • ${payment.paymentMethod.displayName}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(

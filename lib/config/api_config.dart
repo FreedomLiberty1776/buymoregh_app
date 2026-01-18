@@ -1,13 +1,17 @@
 /// API Configuration for BuyMore Agent App
 /// 
 /// Switch between development and production by changing [environment]
+  String wifiIP = "192.168.43.226";
+  String localhostIP = "10.0.2.2";
 
 class ApiConfig {
   // Environment: 'development' or 'production'
   static const String environment = 'development';
+
+
   
   // Base URLs
-  static const String _devBaseUrl = 'http://10.0.2.2:8000';  // Android emulator localhost
+  static final String _devBaseUrl = 'http://$wifiIP:8000';  // Android emulator localhost
   static const String _prodBaseUrl = 'https://api.buymoregh.com';
   
   static String get baseUrl => environment == 'development' ? _devBaseUrl : _prodBaseUrl;

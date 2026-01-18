@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../config/app_theme.dart';
 import '../models/contract.dart';
-import '../screens/customers/customer_detail_screen.dart';
+import '../screens/contracts/contract_detail_screen.dart';
 
 class CustomerContractCard extends StatelessWidget {
   final Contract contract;
@@ -45,10 +45,7 @@ class CustomerContractCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => CustomerDetailScreen(
-              customerId: contract.customerId,
-              customerName: contract.customerName,
-            ),
+            builder: (_) => ContractDetailScreen(contract: contract),
           ),
         );
       },

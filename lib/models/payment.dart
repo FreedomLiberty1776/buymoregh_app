@@ -67,6 +67,7 @@ class Payment {
   final int customerId;
   final String customerName;
   final String? customerPhone;
+  final String? customerNumber;
   final int? agentId;
   final String? agentName;
   final double amount;
@@ -106,6 +107,7 @@ class Payment {
     required this.customerId,
     required this.customerName,
     this.customerPhone,
+    this.customerNumber,
     this.agentId,
     this.agentName,
     required this.amount,
@@ -149,6 +151,7 @@ class Payment {
       customerId: json['customer'] ?? json['customer_id'] ?? 0,
       customerName: json['customer_name'] ?? '',
       customerPhone: json['customer_phone'],
+      customerNumber: json['customer_number'],
       agentId: json['agent'] ?? json['agent_id'],
       agentName: json['agent_name'],
       amount: _parseDouble(json['amount']),
@@ -191,6 +194,7 @@ class Payment {
       'customer': customerId,
       'customer_name': customerName,
       'customer_phone': customerPhone,
+      'customer_number': customerNumber,
       'agent': agentId,
       'agent_name': agentName,
       'amount': amount.toString(),
@@ -220,6 +224,7 @@ class Payment {
       'customer_id': customerId,
       'customer_name': customerName,
       'customer_phone': customerPhone,
+      'customer_number': customerNumber,
       'agent_id': agentId,
       'agent_name': agentName,
       'amount': amount,
@@ -256,6 +261,7 @@ class Payment {
       customerId: json['customer_id'] ?? 0,
       customerName: json['customer_name'] ?? '',
       customerPhone: json['customer_phone'],
+      customerNumber: json['customer_number'],
       agentId: json['agent_id'],
       agentName: json['agent_name'],
       amount: _parseDouble(json['amount']),

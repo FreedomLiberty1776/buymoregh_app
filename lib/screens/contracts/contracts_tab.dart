@@ -5,7 +5,7 @@ import '../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/app_provider.dart';
 import '../../models/contract.dart';
-import '../customers/customer_detail_screen.dart';
+import 'contract_detail_screen.dart';
 import 'add_payment_screen.dart';
 
 class ContractsTab extends StatefulWidget {
@@ -241,9 +241,8 @@ class _ContractsTabState extends State<ContractsTab> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => CustomerDetailScreen(
-                                    customerId: contract.customerId,
-                                    customerName: contract.customerName,
+                                  builder: (_) => ContractDetailScreen(
+                                    contract: contract,
                                   ),
                                 ),
                               );
