@@ -1,4 +1,4 @@
-package com.example.buymoregh_agent
+package com.buymoregh.agent
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 
