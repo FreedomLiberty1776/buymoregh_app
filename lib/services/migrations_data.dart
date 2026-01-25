@@ -2,7 +2,7 @@ import 'local_db_migration.dart';
 
 /// Current database version
 /// Increment this whenever you add a new migration
-const int currentVersion = 4;
+const int currentVersion = 6;
 
 /// Initial database schema (version 1)
 /// This represents the original table structures
@@ -163,6 +163,8 @@ List<List<TableMigration>> migrations = [
   migration2,
   migration3,
   migration4,
+  migration5,
+  migration6,
 ];
 
 /// Migration 2: Add extended customer fields
@@ -375,6 +377,38 @@ List<TableMigration> migration4 = [
         action: 'add',
         oldName: '',
         defaultValue: ''),
+  ]),
+];
+
+/// Migration 5: Add GPS location to Customer table
+List<TableMigration> migration5 = [
+  TableMigration(table: 'Customer', migrationVersion: 5, fieldItems: [
+    FieldItem(
+        fieldName: 'latitude',
+        type: 'double',
+        action: 'add',
+        oldName: ''),
+    FieldItem(
+        fieldName: 'longitude',
+        type: 'double',
+        action: 'add',
+        oldName: ''),
+  ]),
+];
+
+/// Migration 6: Ensure Customer has latitude/longitude (fix for DBs that were at v5 without these columns)
+List<TableMigration> migration6 = [
+  TableMigration(table: 'Customer', migrationVersion: 6, fieldItems: [
+    FieldItem(
+        fieldName: 'latitude',
+        type: 'double',
+        action: 'add',
+        oldName: ''),
+    FieldItem(
+        fieldName: 'longitude',
+        type: 'double',
+        action: 'add',
+        oldName: ''),
   ]),
 ];
 

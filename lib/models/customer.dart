@@ -25,6 +25,9 @@ class Customer {
   // Agent
   final int? registeredById;
   final String? registeredByName;
+  // GPS location (collected at signup)
+  final double? latitude;
+  final double? longitude;
   // Status
   final bool isActive;
   final int contractCount;
@@ -50,6 +53,8 @@ class Customer {
     this.nextOfKinRelationship,
     this.occupation,
     this.workplace,
+    this.latitude,
+    this.longitude,
     this.monthlyIncome,
     this.passportPhoto,
     this.idPhoto,
@@ -79,6 +84,8 @@ class Customer {
       nextOfKinRelationship: json['next_of_kin_relationship'],
       occupation: json['occupation'],
       workplace: json['workplace'],
+      latitude: _parseDouble(json['latitude']),
+      longitude: _parseDouble(json['longitude']),
       monthlyIncome: _parseDouble(json['monthly_income']),
       passportPhoto: json['passport_photo'],
       idPhoto: json['id_photo'],
@@ -120,6 +127,8 @@ class Customer {
       'occupation': occupation,
       'workplace': workplace,
       'monthly_income': monthlyIncome?.toString(),
+      'latitude': latitude,
+      'longitude': longitude,
       'passport_photo': passportPhoto,
       'id_photo': idPhoto,
       'registered_by': registeredById,
@@ -147,6 +156,8 @@ class Customer {
     if (occupation != null && occupation!.isNotEmpty) json['occupation'] = occupation;
     if (workplace != null && workplace!.isNotEmpty) json['workplace'] = workplace;
     if (monthlyIncome != null) json['monthly_income'] = monthlyIncome.toString();
+    if (latitude != null) json['latitude'] = latitude.toString();
+    if (longitude != null) json['longitude'] = longitude.toString();
     if (passportPhoto != null && passportPhoto!.isNotEmpty) json['passport_photo'] = passportPhoto;
     if (idPhoto != null && idPhoto!.isNotEmpty) json['id_photo'] = idPhoto;
     if (localUniqueId != null) json['client_reference'] = localUniqueId;
@@ -172,6 +183,8 @@ class Customer {
       'occupation': occupation ?? '',
       'workplace': workplace ?? '',
       'monthly_income': monthlyIncome,
+      'latitude': latitude,
+      'longitude': longitude,
       'passport_photo': passportPhoto,
       'id_photo': idPhoto,
       // Store in both old and new columns for compatibility
@@ -205,6 +218,8 @@ class Customer {
       occupation: json['occupation'],
       workplace: json['workplace'],
       monthlyIncome: _parseDouble(json['monthly_income']),
+      latitude: _parseDouble(json['latitude']),
+      longitude: _parseDouble(json['longitude']),
       passportPhoto: json['passport_photo'] ?? json['profile_photo'],
       idPhoto: json['id_photo'],
       // Handle both old (agent_id) and new (registered_by_id) column names
@@ -238,6 +253,8 @@ class Customer {
     String? nextOfKinRelationship,
     String? occupation,
     String? workplace,
+    double? latitude,
+    double? longitude,
     double? monthlyIncome,
     String? passportPhoto,
     String? idPhoto,
@@ -265,6 +282,8 @@ class Customer {
       nextOfKinRelationship: nextOfKinRelationship ?? this.nextOfKinRelationship,
       occupation: occupation ?? this.occupation,
       workplace: workplace ?? this.workplace,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       monthlyIncome: monthlyIncome ?? this.monthlyIncome,
       passportPhoto: passportPhoto ?? this.passportPhoto,
       idPhoto: idPhoto ?? this.idPhoto,

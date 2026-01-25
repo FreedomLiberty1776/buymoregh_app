@@ -215,7 +215,9 @@ class DatabaseHelper {
       return;
     }
 
-    List<String> sqlStatements = generateTableModificationSQL(migration, []);
+    // Get existing columns so we skip ADD COLUMN if column already exists
+    List<String> existingColumns = await _getTableColumns(db, migration.table);
+    List<String> sqlStatements = generateTableModificationSQL(migration, existingColumns);
 
     if (sqlStatements.isEmpty) {
       return;
@@ -228,6 +230,19 @@ class DatabaseHelper {
         // Column might already exist, continue
         print('Migration warning: $e');
       }
+    }
+  }
+
+  /// Returns list of column names for a table (from PRAGMA table_info)
+  Future<List<String>> _getTableColumns(Database db, String tableName) async {
+    try {
+      final rows = await db.rawQuery('PRAGMA table_info($tableName)');
+      return rows
+          .map<String>((r) => r['name'] as String? ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
     }
   }
   

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../config/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -46,6 +48,12 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _nokNameController = TextEditingController();
   final _nokPhoneController = TextEditingController();
   String? _selectedNokRelationship;
+
+  // GPS location (optional)
+  double? _latitude;
+  double? _longitude;
+  bool _isLoadingLocation = false;
+  String? _locationError;
 
   @override
   void dispose() {
@@ -184,6 +192,58 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     );
   }
 
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+      _locationError = null;
+    });
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _locationError = 'Location service is disabled. Enable it in device settings.';
+        });
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        setState(() {
+          _locationError = 'Location permission is required to record coordinates.';
+        });
+        return;
+      }
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('Location request timed out'),
+      );
+      if (!mounted) return;
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+        _locationError = null;
+      });
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _locationError = 'Location request timed out. Turn on GPS/location and try again, or move to a place with better signal.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _locationError = 'Could not get location: ${e is Exception ? e.toString().replaceFirst('Exception: ', '') : e}';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingLocation = false);
+      }
+    }
+  }
+
   Future<void> _submitCustomer() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -206,6 +266,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         address: _addressController.text.trim(),
         city: _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
         region: _selectedRegion,
+        latitude: _latitude,
+        longitude: _longitude,
         occupation: _occupationController.text.trim().isNotEmpty ? _occupationController.text.trim() : null,
         workplace: _workplaceController.text.trim().isNotEmpty ? _workplaceController.text.trim() : null,
         monthlyIncome: _monthlyIncomeController.text.trim().isNotEmpty 
@@ -806,6 +868,73 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             },
           ),
         ),
+        // GPS location
+        const SizedBox(height: 8),
+        Text(
+          'Location (optional)',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _isLoadingLocation ? null : _getCurrentLocation,
+                icon: _isLoadingLocation
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location, size: 20),
+                label: Text(_latitude != null && _longitude != null
+                    ? 'Location recorded'
+                    : 'Get location'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: AppTheme.primaryColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            if (_latitude != null && _longitude != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _latitude = null;
+                    _longitude = null;
+                    _locationError = null;
+                  });
+                },
+                icon: const Icon(Icons.clear),
+                tooltip: 'Clear location',
+              ),
+            ],
+          ],
+        ),
+        if (_locationError != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            _locationError!,
+            style: TextStyle(color: AppTheme.errorColor, fontSize: 12),
+          ),
+        ],
+        if (_latitude != null && _longitude != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              '${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ),
       ],
     );
   }

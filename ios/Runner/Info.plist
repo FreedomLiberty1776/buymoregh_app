@@ -53,5 +53,7 @@
 	<string>Buymore Agent needs photo library access to select photos of customers and documents</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Buymore Agent needs permission to save photos to your photo library</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Buymore Agent uses your location to record the customer's signup address on the map.</string>
 </dict>
 </plist>
