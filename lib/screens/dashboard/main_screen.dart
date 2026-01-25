@@ -19,13 +19,11 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _tabs = const [
-    DashboardTab(),
-    CustomersTab(),
-    ContractsTab(),
-    CollectionsTab(),
-    ReportsTab(),
-  ];
+  void _switchToTab(int index) {
+    if (index >= 0 && index < 5) {
+      setState(() => _currentIndex = index);
+    }
+  }
 
   @override
   void initState() {
@@ -56,10 +54,17 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tabs = [
+      DashboardTab(onSwitchToTab: _switchToTab),
+      const CustomersTab(),
+      const ContractsTab(),
+      const CollectionsTab(),
+      const ReportsTab(),
+    ];
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _tabs,
+        children: tabs,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

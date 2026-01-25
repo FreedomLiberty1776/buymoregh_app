@@ -5,6 +5,8 @@ import '../models/user.dart';
 import '../models/customer.dart';
 import '../models/contract.dart';
 import '../models/payment.dart';
+import '../models/product.dart';
+import '../models/category.dart';
 import 'database_helper.dart';
 
 /// API Service for communicating with BuyMore backend
@@ -423,6 +425,97 @@ class ApiService {
     }
   }
   
+  // ==================== PRODUCTS & CATEGORIES ====================
+
+  Future<ApiResponse<List<Category>>> getCategories() async {
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig.categories),
+        headers: await _getHeaders(),
+      ).timeout(ApiConfig.connectionTimeout);
+      return _handleResponse(response, (data) {
+        final List<dynamic> results = data['results'] ?? data;
+        return results.map((e) => Category.fromJson(e)).toList();
+      });
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
+  Future<ApiResponse<List<Product>>> getProducts({
+    String? search,
+    int? categoryId,
+    bool? isActive,
+  }) async {
+    try {
+      List<String> params = [];
+      if (search != null && search.isNotEmpty) params.add('search=$search');
+      if (categoryId != null) params.add('category_id=$categoryId');
+      if (isActive != null) params.add('is_active=$isActive');
+      final url = params.isEmpty
+          ? ApiConfig.products
+          : '${ApiConfig.products}?${params.join('&')}';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: await _getHeaders(),
+      ).timeout(ApiConfig.connectionTimeout);
+      return _handleResponse(response, (data) {
+        final List<dynamic> results = data['results'] ?? data;
+        return results.map((e) => Product.fromJson(e)).toList();
+      });
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
+  Future<ApiResponse<Product>> getProduct(int productId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.products}$productId/'),
+        headers: await _getHeaders(),
+      ).timeout(ApiConfig.connectionTimeout);
+      return _handleResponse(response, (data) => Product.fromJson(data));
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
+  // ==================== CONTRACT CREATE ====================
+
+  Future<ApiResponse<Contract>> createContract({
+    required int customerId,
+    required int productId,
+    required double totalPrice,
+    required double depositAmount,
+    required String paymentFrequency,
+    required String expectedStartDate,
+    String? expectedEndDate,
+    int releaseThresholdPercentage = 75,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'customer': customerId,
+        'product': productId,
+        'total_price': totalPrice,
+        'deposit_amount': depositAmount,
+        'payment_frequency': paymentFrequency,
+        'expected_start_date': expectedStartDate,
+        'release_threshold_percentage': releaseThresholdPercentage,
+      };
+      if (expectedEndDate != null && expectedEndDate.isNotEmpty) {
+        body['expected_end_date'] = expectedEndDate;
+      }
+      final response = await http.post(
+        Uri.parse(ApiConfig.contracts),
+        headers: await _getHeaders(),
+        body: jsonEncode(body),
+      ).timeout(ApiConfig.connectionTimeout);
+      return _handleResponse(response, (data) => Contract.fromJson(data));
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
   // ==================== DASHBOARD ====================
   
   Future<ApiResponse<DashboardData>> getDashboard() async {

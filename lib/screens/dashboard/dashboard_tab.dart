@@ -8,9 +8,12 @@ import '../../widgets/stat_card.dart';
 import '../../widgets/payment_list_item.dart';
 import '../profile/profile_screen.dart';
 import '../payments/payment_detail_screen.dart';
+import '../products/products_screen.dart';
 
 class DashboardTab extends StatelessWidget {
-  const DashboardTab({super.key});
+  final void Function(int index)? onSwitchToTab;
+
+  const DashboardTab({super.key, this.onSwitchToTab});
 
   @override
   Widget build(BuildContext context) {
@@ -160,13 +163,31 @@ class DashboardTab extends StatelessWidget {
                       
                       const SizedBox(height: 12),
                       
-                      // Today's Collections Card
-                      StatCard(
+                      // Today's Collections Card - tappable to go to Collections
+                      _TapStatCard(
                         icon: Icons.calendar_today_outlined,
                         label: "Today's Collections",
                         value: currencyFormat.format(appProvider.todayCollections),
                         valueColor: AppTheme.primaryColor,
                         isLoading: appProvider.isLoadingDashboard,
+                        onTap: () => onSwitchToTab?.call(3),
+                      ),
+                      const SizedBox(height: 12),
+                      // Products Card - tappable to open read-only products list
+                      _TapStatCard(
+                        icon: Icons.inventory_2_outlined,
+                        label: 'Products',
+                        value: 'View catalog',
+                        valueColor: AppTheme.primaryColor,
+                        isLoading: false,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProductsScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -187,9 +208,7 @@ class DashboardTab extends StatelessWidget {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {
-                          // Navigate to collections tab
-                        },
+                        onPressed: () => onSwitchToTab?.call(3),
                         child: const Text('View All'),
                       ),
                     ],
@@ -260,6 +279,41 @@ class DashboardTab extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TapStatCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? valueColor;
+  final bool isLoading;
+  final VoidCallback? onTap;
+
+  const _TapStatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+    required this.isLoading,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final child = StatCard(
+      icon: icon,
+      label: label,
+      value: value,
+      valueColor: valueColor,
+      isLoading: isLoading,
+    );
+    if (onTap == null) return child;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: child,
     );
   }
 }

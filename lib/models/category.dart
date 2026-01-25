@@ -1,0 +1,20 @@
+/// Product category for filtering (read-only in agent app)
+class Category {
+  final int id;
+  final String name;
+  final String? description;
+
+  const Category({
+    required this.id,
+    required this.name,
+    this.description,
+  });
+
+  factory Category.fromJson(Map<String, dynamic> json) {
+    return Category(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      description: json['description'],
+    );
+  }
+}

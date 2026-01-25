@@ -6,12 +6,12 @@
 
 class ApiConfig {
   // Environment: 'development' or 'production'
-  static const String environment = 'production';
+  static const String environment = 'development';
 
 
   
   // Base URLs
-  static final String _devBaseUrl = 'http://$wifiIP:8000';  // Android emulator localhost
+  static final String _devBaseUrl = 'http://$localhostIP:8000';  // Android emulator localhost
   static const String _prodBaseUrl = 'https://buymoregh.com';
   
   static String get baseUrl => environment == 'development' ? _devBaseUrl : _prodBaseUrl;

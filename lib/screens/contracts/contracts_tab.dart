@@ -7,6 +7,7 @@ import '../../providers/app_provider.dart';
 import '../../models/contract.dart';
 import 'contract_detail_screen.dart';
 import 'add_payment_screen.dart';
+import 'create_contract_screen.dart';
 
 class ContractsTab extends StatefulWidget {
   const ContractsTab({super.key});
@@ -57,6 +58,24 @@ class _ContractsTabState extends State<ContractsTab> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'create_contract_fab',
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CreateContractScreen(),
+            ),
+          ).then((result) {
+            if (result == true && mounted) {
+              final agentId = authProvider.user?.id;
+              appProvider.loadContracts(agentId: agentId, forceRefresh: true);
+            }
+          });
+        },
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.add),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
