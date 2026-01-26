@@ -397,18 +397,36 @@ List<TableMigration> migration5 = [
 ];
 
 /// Migration 6: Ensure Customer has latitude/longitude (fix for DBs that were at v5 without these columns)
+// List<TableMigration> migration6 = [
+//   TableMigration(table: 'Customer', migrationVersion: 6, fieldItems: [
+//     FieldItem(
+//         fieldName: 'latitude',
+//         type: 'double',
+//         action: 'add',
+//         oldName: ''),
+//     FieldItem(
+//         fieldName: 'longitude',
+//         type: 'double',
+//         action: 'add',
+//         oldName: ''),
+//   ]),
+// ];
+
+/// Migration 7: Add contract_number and product_delivered to Contract table
 List<TableMigration> migration6 = [
-  TableMigration(table: 'Customer', migrationVersion: 6, fieldItems: [
+  TableMigration(table: 'Contract', migrationVersion: 7, fieldItems: [
     FieldItem(
-        fieldName: 'latitude',
-        type: 'double',
+        fieldName: 'contract_number',
+        type: 'string',
         action: 'add',
-        oldName: ''),
+        oldName: '',
+        defaultValue: ''),
     FieldItem(
-        fieldName: 'longitude',
-        type: 'double',
+        fieldName: 'product_delivered',
+        type: 'boolean',
         action: 'add',
-        oldName: ''),
+        oldName: '',
+        defaultValue: 0),
   ]),
 ];
 

@@ -38,10 +38,12 @@ class _ContractsTabState extends State<ContractsTab> {
       if (_statusFilter != null && contract.status != _statusFilter) {
         return false;
       }
-      // Search filter
+      // Search filter: contract number, customer name, product name
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
-        return contract.customerName.toLowerCase().contains(query) ||
+        return (contract.contractNumber.isNotEmpty &&
+                contract.contractNumber.toLowerCase().contains(query)) ||
+            contract.customerName.toLowerCase().contains(query) ||
             contract.productName.toLowerCase().contains(query);
       }
       return true;
@@ -74,7 +76,7 @@ class _ContractsTabState extends State<ContractsTab> {
           });
         },
         backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -389,7 +391,18 @@ class _ContractCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header: Customer Name and Status
+            // Header: Contract #, Customer Name and Status
+            if (contract.contractNumber.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  contract.contractNumber,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

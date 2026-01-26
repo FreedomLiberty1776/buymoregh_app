@@ -231,6 +231,21 @@ class ApiService {
     }
   }
 
+  /// Update an existing customer
+  Future<ApiResponse<Customer>> updateCustomer(int customerId, Customer customer) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${ApiConfig.customers}$customerId/'),
+        headers: await _getHeaders(),
+        body: jsonEncode(customer.toUpdateJson()),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      return _handleResponse(response, (data) => Customer.fromJson(data));
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
   /// Get contracts for a specific customer
   Future<ApiResponse<List<Contract>>> getContractsForCustomer(int customerId) async {
     try {

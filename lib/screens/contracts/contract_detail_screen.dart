@@ -142,6 +142,17 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    if (_contract!.contractNumber.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 4),
+                                        child: Text(
+                                          _contract!.contractNumber,
+                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                            color: AppTheme.textSecondary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
                                     Row(
                                       children: [
                                         Expanded(
@@ -179,6 +190,23 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                                         color: AppTheme.textSecondary,
                                       ),
                                     ),
+                                    if (_contract!.productDelivered)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.local_shipping, size: 14, color: AppTheme.completedStatus),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Product delivered',
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                color: AppTheme.completedStatus,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),

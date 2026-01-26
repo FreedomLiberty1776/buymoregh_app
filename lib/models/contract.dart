@@ -37,6 +37,7 @@ enum ContractStatus {
 
 class Contract {
   final int id;
+  final String contractNumber;
   final int customerId;
   final String customerName;
   final int productId;
@@ -50,6 +51,7 @@ class Contract {
   final int durationMonths;
   final double interestRate;
   final ContractStatus status;
+  final bool productDelivered;
   final DateTime startDate;
   final DateTime endDate;
   final DateTime? nextPaymentDate;
@@ -63,6 +65,7 @@ class Contract {
 
   Contract({
     required this.id,
+    this.contractNumber = '',
     required this.customerId,
     required this.customerName,
     required this.productId,
@@ -76,6 +79,7 @@ class Contract {
     required this.durationMonths,
     required this.interestRate,
     required this.status,
+    this.productDelivered = false,
     required this.startDate,
     required this.endDate,
     this.nextPaymentDate,
@@ -95,6 +99,7 @@ class Contract {
   factory Contract.fromJson(Map<String, dynamic> json) {
     return Contract(
       id: json['id'] ?? 0,
+      contractNumber: json['contract_number']?.toString() ?? '',
       customerId: json['customer'] ?? json['customer_id'] ?? 0,
       customerName: json['customer_name'] ?? '',
       productId: json['product'] ?? json['product_id'] ?? 0,
@@ -108,6 +113,7 @@ class Contract {
       durationMonths: json['duration_months'] ?? 0,
       interestRate: _parseDouble(json['interest_rate']),
       status: ContractStatus.fromString(json['status'] ?? 'ACTIVE'),
+      productDelivered: json['product_delivered'] == true,
       startDate: json['start_date'] != null 
           ? DateTime.parse(json['start_date']) 
           : DateTime.now(),
@@ -164,6 +170,7 @@ class Contract {
   Map<String, dynamic> toLocalJson() {
     return {
       'id': id,
+      'contract_number': contractNumber,
       'customer_id': customerId,
       'customer_name': customerName,
       'product_id': productId,
@@ -177,6 +184,7 @@ class Contract {
       'duration_months': durationMonths,
       'interest_rate': interestRate,
       'status': status.name.toUpperCase(),
+      'product_delivered': productDelivered ? 1 : 0,
       'start_date': startDate.toIso8601String(),
       'end_date': endDate.toIso8601String(),
       'next_payment_date': nextPaymentDate?.toIso8601String(),
@@ -191,6 +199,7 @@ class Contract {
   factory Contract.fromLocalJson(Map<String, dynamic> json) {
     return Contract(
       id: json['id'] ?? 0,
+      contractNumber: json['contract_number']?.toString() ?? '',
       customerId: json['customer_id'] ?? 0,
       customerName: json['customer_name'] ?? '',
       productId: json['product_id'] ?? 0,
@@ -204,6 +213,7 @@ class Contract {
       durationMonths: json['duration_months'] ?? 0,
       interestRate: _parseDouble(json['interest_rate']),
       status: ContractStatus.fromString(json['status'] ?? 'ACTIVE'),
+      productDelivered: json['product_delivered'] == 1,
       startDate: json['start_date'] != null 
           ? DateTime.parse(json['start_date']) 
           : DateTime.now(),

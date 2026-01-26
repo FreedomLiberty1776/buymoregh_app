@@ -1,0 +1,11 @@
+
+adb connect 192.168.43.1:5555  (the ip address is that of the device that is serving as the router. can change based on the device, go to settings under wifi or hotspot to find it)
+python manage.py runserver 0.0.0.0:8000
+change base url to wifiIp
+
+
+
+
+
+
+flutter run -d "SM A202F"  (run on the device)

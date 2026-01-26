@@ -11,6 +11,7 @@ import '../../services/api_service.dart';
 import '../contracts/add_payment_screen.dart';
 import '../contracts/contract_detail_screen.dart';
 import '../payments/payment_detail_screen.dart';
+import 'edit_customer_screen.dart';
 
 class CustomerDetailScreen extends StatefulWidget {
   final int customerId;
@@ -126,6 +127,26 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, color: AppTheme.textPrimary),
+            onPressed: () async {
+              final updated = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditCustomerScreen(
+                    customerId: widget.customerId,
+                    customerName: widget.customerName,
+                  ),
+                ),
+              );
+              if (updated == true && mounted) {
+                _loadCustomerData();
+              }
+            },
+            tooltip: 'Edit customer',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
