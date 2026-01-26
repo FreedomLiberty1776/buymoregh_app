@@ -9,6 +9,7 @@ import '../../models/payment.dart';
 import '../../services/api_service.dart';
 import 'add_payment_screen.dart';
 import '../payments/payment_detail_screen.dart';
+import '../../widgets/payment_list_item.dart';
 
 class ContractDetailScreen extends StatefulWidget {
   final Contract contract;
@@ -405,12 +406,22 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                                   ),
                                 )
                               else
-                                ..._payments.map((payment) => _buildPaymentItem(
-                                  context, 
-                                  payment, 
-                                  currencyFormat, 
-                                  dateFormat,
-                                )),
+                                ..._payments.map(
+                                  (payment) => PaymentListItem(
+                                    payment: payment,
+                                    compactMargin: true,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => PaymentDetailScreen(
+                                            payment: payment,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -528,84 +539,4 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
     );
   }
 
-  Widget _buildPaymentItem(
-    BuildContext context,
-    Payment payment,
-    NumberFormat currencyFormat,
-    DateFormat dateFormat,
-  ) {
-    Color statusColor;
-    switch (payment.approvalStatus) {
-      case PaymentApprovalStatus.approved:
-        statusColor = AppTheme.successColor;
-        break;
-      case PaymentApprovalStatus.pending:
-        statusColor = AppTheme.warningColor;
-        break;
-      case PaymentApprovalStatus.rejected:
-        statusColor = AppTheme.errorColor;
-        break;
-    }
-
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentDetailScreen(payment: payment),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: AppTheme.dividerColor.withOpacity(0.5),
-              width: 1,
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    currencyFormat.format(payment.amount),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${dateFormat.format(payment.paymentDate)} • ${payment.paymentMethod.displayName}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                payment.approvalStatus.displayName.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

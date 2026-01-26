@@ -93,28 +93,35 @@ class AuthProvider with ChangeNotifier {
     }
   }
   
-  /// Validate session and check if user should be logged out
+  /// Validate session. Only logout when backend explicitly requires it (e.g. agent inactive).
+  /// On network errors we stay logged in using local session (offline-first).
   Future<bool> validateSession() async {
     try {
       final result = await _authService.validateSession();
-      
-      if (!result.valid && result.requiresLogout) {
+
+      if (result.requiresLogout) {
         await logout();
         _error = result.error;
         notifyListeners();
         return false;
       }
-      
+
       if (result.valid && result.user != null) {
         _user = result.user;
         notifyListeners();
       }
-      
+
       return result.valid;
     } catch (e) {
+      // On any exception (e.g. timeout), keep user logged in if we have local session
+      final isLoggedIn = await _authService.isLoggedIn();
+      if (isLoggedIn && _user == null) {
+        _user = await _authService.getCurrentUser();
+        notifyListeners();
+      }
       _error = e.toString();
       notifyListeners();
-      return false;
+      return _user != null;
     }
   }
   

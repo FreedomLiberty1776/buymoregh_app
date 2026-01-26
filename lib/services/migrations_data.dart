@@ -2,7 +2,7 @@ import 'local_db_migration.dart';
 
 /// Current database version
 /// Increment this whenever you add a new migration
-const int currentVersion = 6;
+const int currentVersion = 7;
 
 /// Initial database schema (version 1)
 /// This represents the original table structures
@@ -165,6 +165,7 @@ List<List<TableMigration>> migrations = [
   migration4,
   migration5,
   migration6,
+  migration7,
 ];
 
 /// Migration 2: Add extended customer fields
@@ -412,9 +413,9 @@ List<TableMigration> migration5 = [
 //   ]),
 // ];
 
-/// Migration 7: Add contract_number and product_delivered to Contract table
+/// Migration 6: Add contract_number and product_delivered to Contract table
 List<TableMigration> migration6 = [
-  TableMigration(table: 'Contract', migrationVersion: 7, fieldItems: [
+  TableMigration(table: 'Contract', migrationVersion: 6, fieldItems: [
     FieldItem(
         fieldName: 'contract_number',
         type: 'string',
@@ -427,6 +428,18 @@ List<TableMigration> migration6 = [
         action: 'add',
         oldName: '',
         defaultValue: 0),
+  ]),
+];
+
+/// Migration 7: Add contract_number to Payment table (for offline-first / sync)
+List<TableMigration> migration7 = [
+  TableMigration(table: 'Payment', migrationVersion: 7, fieldItems: [
+    FieldItem(
+        fieldName: 'contract_number',
+        type: 'string',
+        action: 'add',
+        oldName: '',
+        defaultValue: ''),
   ]),
 ];
 

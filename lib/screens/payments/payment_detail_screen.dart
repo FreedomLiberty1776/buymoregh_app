@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../models/payment.dart';
+import '../../providers/app_provider.dart';
+import '../../providers/auth_provider.dart';
 
 class PaymentDetailScreen extends StatelessWidget {
   final Payment payment;
@@ -65,10 +68,106 @@ class PaymentDetailScreen extends StatelessWidget {
               const SizedBox(height: 16),
               _buildNotesCard(context),
             ],
-            
+            if (!payment.isSynced) ...[
+              const SizedBox(height: 24),
+              _buildSyncNowCard(context),
+            ],
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSyncNowCard(BuildContext context) {
+    final appProvider = context.watch<AppProvider>();
+    final isSyncing = appProvider.isSyncingPending || appProvider.isSyncing;
+    final isOnline = appProvider.isOnline;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.warningColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.warningColor.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.cloud_upload, color: AppTheme.warningColor, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'Not synced',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.warningColor,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isOnline
+                ? 'This payment is saved locally. Tap below to send it to the server.'
+                : 'This payment is saved locally. It will sync when you\'re back online.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+          ),
+          if (isOnline) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: isSyncing
+                    ? null
+                    : () async {
+                        await appProvider.triggerSync(
+                          agentId: context.read<AuthProvider>().user?.id,
+                        );
+                        if (context.mounted) {
+                          final stillUnsynced = appProvider.unsyncedPayments
+                              .any((p) => p.clientReference == payment.clientReference);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                stillUnsynced
+                                    ? 'Sync in progress or could not sync. Try again.'
+                                    : 'Payment synced.',
+                              ),
+                              backgroundColor: stillUnsynced
+                                  ? AppTheme.warningColor
+                                  : AppTheme.completedStatus,
+                            ),
+                          );
+                          if (!stillUnsynced && context.mounted) {
+                            Navigator.pop(context, true);
+                          }
+                        }
+                      },
+                icon: isSyncing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.cloud_upload, size: 20),
+                label: Text(isSyncing ? 'Syncing...' : 'Sync now'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

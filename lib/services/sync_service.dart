@@ -80,9 +80,9 @@ class SyncService {
   
   Future<bool> _syncPayment(String operation, String? data) async {
     if (data == null) return false;
-    
+
     final paymentData = jsonDecode(data) as Map<String, dynamic>;
-    
+
     if (operation == 'create') {
       final response = await _api.createPayment(
         contractId: paymentData['contract_id'],
@@ -90,15 +90,16 @@ class SyncService {
         paymentMethod: paymentData['payment_method'],
         clientReference: paymentData['client_reference'],
         momoPhone: paymentData['momo_phone'],
+        notes: paymentData['notes'],
       );
-      
+
       if (response.success && response.data != null) {
-        // Update local record with server ID
+        // Replace local placeholder with server record (idempotent)
         await _db.savePayment(response.data!);
         return true;
       }
     }
-    
+
     return false;
   }
   

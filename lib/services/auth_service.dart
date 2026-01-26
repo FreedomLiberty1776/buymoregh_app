@@ -83,50 +83,82 @@ class AuthService {
     return await _db.getUser();
   }
   
-  /// Validate session with backend (for forced logout check)
-  /// 
+  /// Validate session with backend (for forced logout check).
+  /// Offline-first: if we have a stored session and the request fails due to network,
+  /// we consider the session valid and keep the user logged in (no logout).
+  ///
   /// Returns AuthValidationResult with:
-  /// - valid: true if session is valid
-  /// - error: error message if invalid
-  /// - requiresLogout: true if user should be forcefully logged out
+  /// - valid: true if session is valid (or we have local session and network failed)
+  /// - requiresLogout: true only when backend explicitly requires logout (e.g. agent inactive)
   Future<AuthValidationResult> validateSession() async {
     final response = await _api.getMe();
-    
+
     if (response.success && response.data != null) {
       // Update local user data
       await _db.saveUser(response.data!);
-      
+
       return AuthValidationResult(
         valid: true,
         user: response.data,
       );
-    } else {
-      // Check for agent status errors
-      if (response.code == 'AGENT_INACTIVE' || response.code == 'AGENT_STATUS_REVOKED') {
+    }
+
+    // Network error or timeout: stay logged in using local user (offline-first)
+    if (response.code == 'NETWORK_ERROR') {
+      final localUser = await _db.getUser();
+      if (localUser != null) {
         return AuthValidationResult(
-          valid: false,
+          valid: true,
+          user: localUser,
           error: response.error,
           errorCode: response.code,
-          requiresLogout: true,
+          requiresLogout: false,
         );
       }
-      
-      // For other auth errors, try to refresh token
-      if (response.code == 'AUTH_FAILED') {
-        final refreshResult = await _tryRefreshToken();
-        if (refreshResult) {
-          // Retry the request
-          return await validateSession();
-        }
-      }
-      
+    }
+
+    // Explicit backend auth/agent status errors: require logout
+    if (response.code == 'AGENT_INACTIVE' || response.code == 'AGENT_STATUS_REVOKED') {
       return AuthValidationResult(
         valid: false,
         error: response.error,
         errorCode: response.code,
-        requiresLogout: response.isAuthError,
+        requiresLogout: true,
       );
     }
+
+    // Auth failed: try refresh once
+    if (response.code == 'AUTH_FAILED') {
+      final refreshResult = await _tryRefreshToken();
+      if (refreshResult) {
+        return await validateSession();
+      }
+      return AuthValidationResult(
+        valid: false,
+        error: response.error,
+        errorCode: response.code,
+        requiresLogout: true,
+      );
+    }
+
+    // Other errors (e.g. 500): if we have local user, stay logged in
+    final localUser = await _db.getUser();
+    if (localUser != null && !response.isAuthError) {
+      return AuthValidationResult(
+        valid: true,
+        user: localUser,
+        error: response.error,
+        errorCode: response.code,
+        requiresLogout: false,
+      );
+    }
+
+    return AuthValidationResult(
+      valid: false,
+      error: response.error,
+      errorCode: response.code,
+      requiresLogout: response.isAuthError,
+    );
   }
   
   /// Refresh access token using refresh token

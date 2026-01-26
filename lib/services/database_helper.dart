@@ -391,9 +391,22 @@ class DatabaseHelper {
   }
   
   // ==================== PAYMENT OPERATIONS ====================
-  
+
+  /// Save payment. When saving a synced payment from server (id > 0) with client_reference,
+  /// removes any local placeholder row with that client_reference so we don't duplicate.
   Future<int> savePayment(Payment payment) async {
     final db = await database;
+    final ref = payment.clientReference;
+
+    // Replace local placeholder with server record (idempotent sync)
+    if (payment.id > 0 && ref != null && ref.isNotEmpty) {
+      await db.delete(
+        'Payment',
+        where: 'client_reference = ? AND id <= 0',
+        whereArgs: [ref],
+      );
+    }
+
     return await db.insert(
       'Payment',
       payment.toLocalJson(),
@@ -523,7 +536,25 @@ class DatabaseHelper {
     if (maps.isEmpty) return null;
     return Payment.fromLocalJson(maps.first);
   }
-  
+
+  /// Returns payments that are stored locally but not yet synced to server
+  Future<List<Payment>> getUnsyncedPayments({int? agentId}) async {
+    final db = await database;
+    List<String> conditions = ['(is_synced = 0 OR is_synced IS NULL)'];
+    List<dynamic> args = [];
+    if (agentId != null) {
+      conditions.add('agent_id = ?');
+      args.add(agentId);
+    }
+    final maps = await db.query(
+      'Payment',
+      where: conditions.join(' AND '),
+      whereArgs: args.isEmpty ? null : args,
+      orderBy: 'payment_date DESC',
+    );
+    return maps.map((e) => Payment.fromLocalJson(e)).toList();
+  }
+
   // ==================== OFFLINE QUEUE OPERATIONS ====================
   
   Future<int> addToOfflineQueue({

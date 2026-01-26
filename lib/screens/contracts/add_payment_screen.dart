@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../models/contract.dart';
 import '../../models/payment.dart';
-import '../../services/api_service.dart';
+import '../../providers/app_provider.dart';
 
 class AddPaymentScreen extends StatefulWidget {
   final Contract contract;
@@ -39,48 +39,46 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
 
   Future<void> _submitPayment() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
-    
+
     try {
       final amount = double.parse(_amountController.text);
-      final clientReference = const Uuid().v4();
-      
-      final api = ApiService();
-      final result = await api.createPayment(
-        contractId: widget.contract.id,
+      final appProvider = context.read<AppProvider>();
+
+      // Offline-first: saves locally first, then syncs when online (idempotent via client_reference)
+      await appProvider.createPayment(
+        contract: widget.contract,
         amount: amount,
         paymentMethod: _getPaymentMethodString(_selectedMethod),
-        clientReference: clientReference,
-        momoPhone: _selectedMethod == PaymentMethod.mobileMoney 
-            ? _momoPhoneController.text 
+        momoPhone: _selectedMethod == PaymentMethod.mobileMoney
+            ? _momoPhoneController.text
             : null,
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
       );
-      
+
       if (!mounted) return;
-      
-      if (result.success) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Payment recorded successfully!'),
-            backgroundColor: AppTheme.completedStatus,
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            appProvider.isOnline
+                ? 'Payment recorded successfully!'
+                : 'Payment saved locally. It will sync when you have connection.',
           ),
-        );
-        Navigator.pop(context, true);
-      } else {
+          backgroundColor: AppTheme.completedStatus,
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _errorMessage = result.error ?? 'Failed to record payment';
+          _errorMessage = 'Error: $e';
         });
       }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error: $e';
-      });
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);

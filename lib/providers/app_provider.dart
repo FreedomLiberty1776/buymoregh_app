@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:uuid/uuid.dart';
 import '../models/customer.dart';
 import '../models/contract.dart';
 import '../models/payment.dart';
@@ -28,17 +30,23 @@ class AppProvider with ChangeNotifier {
   List<Customer> _customers = [];
   List<Contract> _contracts = [];
   List<Payment> _payments = [];
-  
+  List<Payment> _unsyncedPayments = [];
+
+  int? _lastAgentId;
+
   // Loading states
   bool _isLoadingDashboard = false;
   bool _isLoadingCustomers = false;
   bool _isLoadingContracts = false;
   bool _isLoadingPayments = false;
-  
+  bool _isSyncingPending = false;
+
   // Getters
   bool get isOnline => _isOnline;
   bool get isSyncing => _isSyncing;
   bool get hasPendingSync => _hasPendingSync;
+  bool get isSyncingPending => _isSyncingPending;
+  List<Payment> get unsyncedPayments => _unsyncedPayments;
   
   int get customerCount => _customerCount;
   double get pendingApprovals => _pendingApprovals;
@@ -59,15 +67,17 @@ class AppProvider with ChangeNotifier {
     Connectivity().onConnectivityChanged.listen((result) {
       final wasOnline = _isOnline;
       _isOnline = result.isNotEmpty && !result.contains(ConnectivityResult.none);
-      
-      // Trigger sync when coming back online
+
+      // When coming back online: short delay so connection is stable, then sync (including offline queue POSTs)
       if (_isOnline && !wasOnline) {
-        syncData();
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          syncData(agentId: _lastAgentId);
+        });
       }
-      
+
       notifyListeners();
     });
-    
+
     // Check initial connectivity
     Connectivity().checkConnectivity().then((result) {
       _isOnline = result.isNotEmpty && !result.contains(ConnectivityResult.none);
@@ -101,17 +111,19 @@ class AppProvider with ChangeNotifier {
   /// Load all data (from local DB, then refresh from server if online)
   /// Set [forceRefresh] to true to always try to fetch from server
   Future<void> loadAllData({int? agentId, bool forceRefresh = false}) async {
+    _lastAgentId = agentId;
     // Check connectivity before loading
     final result = await Connectivity().checkConnectivity();
     _isOnline = result.isNotEmpty && !result.contains(ConnectivityResult.none);
     notifyListeners();
-    
+
     await Future.wait([
       loadDashboard(agentId: agentId, forceRefresh: forceRefresh),
       loadCustomers(agentId: agentId, forceRefresh: forceRefresh),
       loadContracts(agentId: agentId, forceRefresh: forceRefresh),
       loadPayments(agentId: agentId, forceRefresh: forceRefresh),
     ]);
+    await loadUnsyncedPayments(agentId: agentId);
   }
   
   /// Load dashboard data
@@ -134,10 +146,13 @@ class AppProvider with ChangeNotifier {
       if (_isOnline) {
         final response = await _api.getDashboard();
         if (response.success && response.data != null) {
+          await _db.savePayments(response.data!.recentPayments);
           _customerCount = response.data!.customerCount;
           _pendingApprovals = response.data!.pendingApprovals;
           _todayCollections = response.data!.todayCollections;
-          _recentPayments = response.data!.recentPayments;
+          // Re-load from DB so unsynced (local-only) payments stay in the list
+          _recentPayments = await _db.getPayments(agentId: agentId);
+          _recentPayments = _recentPayments.take(5).toList();
           notifyListeners();
         }
       }
@@ -245,7 +260,13 @@ class AppProvider with ChangeNotifier {
         );
         if (response.success && response.data != null) {
           await _db.savePayments(response.data!);
-          _payments = response.data!;
+          // Re-load from DB so unsynced (local-only) payments stay in the list
+          _payments = await _db.getPayments(
+            agentId: agentId,
+            status: status,
+            fromDate: fromDate,
+            toDate: toDate,
+          );
           notifyListeners();
         }
       } else if (forceRefresh) {
@@ -283,7 +304,7 @@ class AppProvider with ChangeNotifier {
           operation: 'create',
           uniqueField: 'local_unique_id',
           uniqueFieldValue: customer.localUniqueId ?? '',
-          data: customer.toCreateJson().toString(),
+          data: jsonEncode(customer.toCreateJson()),
         );
         await checkPendingSync();
       }
@@ -307,6 +328,100 @@ class AppProvider with ChangeNotifier {
     }
   }
 
+  /// Create payment (offline-first). Saves locally first, then syncs to server when online.
+  /// Uses client_reference for idempotency so the same payment is never submitted twice.
+  Future<bool> createPayment({
+    required Contract contract,
+    required double amount,
+    required String paymentMethod,
+    String? momoPhone,
+    String? notes,
+  }) async {
+    final ref = const Uuid().v4();
+    final localId = -(ref.hashCode & 0x7FFFFFFF);
+
+    final payment = Payment(
+      id: localId,
+      contractId: contract.id,
+      customerId: contract.customerId,
+      customerName: contract.customerName,
+      amount: amount,
+      paymentMethod: PaymentMethod.fromString(paymentMethod),
+      momoPhone: momoPhone,
+      approvalStatus: PaymentApprovalStatus.pending,
+      paymentDate: DateTime.now(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      notes: notes,
+      isSynced: false,
+      localUniqueId: ref,
+      clientReference: ref,
+      productName: contract.productName,
+      productId: contract.productId,
+      agentId: contract.agentId,
+      contractNumber: contract.contractNumber,
+      contractTotalAmount: contract.totalAmount,
+      contractOutstandingBalance: contract.outstandingBalance,
+      contractTotalPaid: contract.totalPaid,
+      contractPaymentPercentage: contract.paymentPercentage,
+    );
+
+    await _db.savePayment(payment);
+
+    final payload = {
+      'contract_id': contract.id,
+      'amount': amount,
+      'payment_method': paymentMethod,
+      'client_reference': ref,
+      'momo_phone': momoPhone,
+      'notes': notes,
+    };
+    await _db.addToOfflineQueue(
+      tableName: 'Payment',
+      operation: 'create',
+      uniqueField: 'client_reference',
+      uniqueFieldValue: ref,
+      data: jsonEncode(payload),
+    );
+    await checkPendingSync();
+    await loadUnsyncedPayments(agentId: contract.agentId);
+
+    _payments.insert(0, payment);
+    _recentPayments.insert(0, payment);
+    if (_recentPayments.length > 5) _recentPayments = _recentPayments.take(5).toList();
+    notifyListeners();
+
+    if (_isOnline) {
+      final response = await _api.createPayment(
+        contractId: contract.id,
+        amount: amount,
+        paymentMethod: paymentMethod,
+        clientReference: ref,
+        momoPhone: momoPhone,
+        notes: notes,
+      );
+      if (response.success && response.data != null) {
+        await _db.savePayment(response.data!);
+        final pending = await _db.getPendingOfflineQueue();
+        for (final item in pending) {
+          if (item['unique_field_value'] == ref) {
+            await _db.markOfflineQueueItemComplete(item['id'] as int);
+            break;
+          }
+        }
+        await checkPendingSync();
+        final agentId = contract.agentId;
+        if (agentId != null) {
+          _payments = await _db.getPayments(agentId: agentId);
+          _recentPayments = await _db.getPayments(agentId: agentId);
+          _recentPayments = _recentPayments.take(5).toList();
+        }
+        notifyListeners();
+      }
+    }
+    return true;
+  }
+
   /// Get contracts for a specific customer
   List<Contract> getContractsForCustomer(int customerId) {
     return _contracts.where((c) => c.customerId == customerId).toList();
@@ -328,6 +443,33 @@ class AppProvider with ChangeNotifier {
     return _contracts.where((c) => c.isOverdue).toList();
   }
   
+  /// Load list of payments that are not yet synced to server
+  Future<void> loadUnsyncedPayments({int? agentId}) async {
+    _unsyncedPayments = await _db.getUnsyncedPayments(agentId: agentId);
+    notifyListeners();
+  }
+
+  /// Run offline queue sync only (POST pending payments), then refresh data
+  Future<void> triggerSync({int? agentId}) async {
+    if (_isSyncingPending || _isSyncing) return;
+    if (!await _syncService.hasConnectivity()) return;
+
+    _isSyncingPending = true;
+    notifyListeners();
+
+    try {
+      final result = await _syncService.processOfflineQueue();
+      await checkPendingSync();
+      await loadUnsyncedPayments(agentId: agentId ?? _lastAgentId);
+      if (result.processedCount > 0 || result.failedCount > 0) {
+        await loadAllData(agentId: agentId ?? _lastAgentId);
+      }
+    } finally {
+      _isSyncingPending = false;
+      notifyListeners();
+    }
+  }
+
   /// Clear all data
   Future<void> clearData() async {
     await _db.clearAllData();
@@ -335,6 +477,7 @@ class AppProvider with ChangeNotifier {
     _contracts = [];
     _payments = [];
     _recentPayments = [];
+    _unsyncedPayments = [];
     _customerCount = 0;
     _pendingApprovals = 0;
     _todayCollections = 0;

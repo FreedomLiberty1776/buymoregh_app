@@ -8,6 +8,7 @@ import '../../widgets/stat_card.dart';
 import '../../widgets/payment_list_item.dart';
 import '../profile/profile_screen.dart';
 import '../payments/payment_detail_screen.dart';
+import '../payments/unsynced_payments_screen.dart';
 import '../products/products_screen.dart';
 
 class DashboardTab extends StatelessWidget {
@@ -132,6 +133,49 @@ class DashboardTab extends StatelessWidget {
                           ],
                         ),
                       ),
+                      // Pending sync icon – tap to open unsynced payments
+                      if (appProvider.hasPendingSync) ...[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const UnsyncedPaymentsScreen(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warningColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.cloud_upload,
+                                  size: 18,
+                                  color: AppTheme.warningColor,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Sync',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.warningColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -254,7 +298,7 @@ class DashboardTab extends StatelessWidget {
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final payment = appProvider.recentPayments[index];
+                      final payment = appProvider.recentPayments[index]; // shouldn't be longer than 5
                       return PaymentListItem(
                         payment: payment,
                         onTap: () {

@@ -334,7 +334,6 @@ class _CollectionsTabState extends State<CollectionsTab> {
                         final payment = filteredPayments[index];
                         return PaymentListItem(
                           payment: payment,
-                          showPercentage: true,
                           onTap: () {
                             Navigator.push(
                               context,
