@@ -125,23 +125,43 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
       _locationError = null;
     });
     try {
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        final requested = await Geolocator.requestPermission();
-        if (requested == LocationPermission.denied ||
-            requested == LocationPermission.deniedForever) {
-          if (!mounted) return;
-          setState(() {
-            _locationError = 'Location permission is required to record coordinates.';
-            _isLoadingLocation = false;
-          });
-          return;
-        }
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        setState(() {
+          _locationError = 'Location service is disabled. Enable it in device settings.';
+          _isLoadingLocation = false;
+        });
+        return;
       }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        setState(() {
+          _locationError = 'Location permission is required to record coordinates.';
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+      // Ensure we have fine location permission for highest accuracy
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+        if (!mounted) return;
+        setState(() {
+          _locationError = 'Fine location permission is required for accurate GPS coordinates.';
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+      // Use highest accuracy setting for best GPS precision
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 20), // Allow more time for GPS to get accurate fix
       ).timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 30),
         onTimeout: () => throw TimeoutException('Location request timed out'),
       );
       if (!mounted) return;
@@ -154,7 +174,7 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
       if (!mounted) return;
       setState(() {
         _locationError =
-            'Location request timed out. Turn on GPS/location and try again.';
+            'Location request timed out. Turn on GPS/location and try again, or move to a place with better signal.';
       });
     } catch (e) {
       if (!mounted) return;
@@ -695,7 +715,7 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
         if (_latitude != null && _longitude != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text('${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary)),
+            child: Text('${_latitude!.toStringAsFixed(10)}, ${_longitude!.toStringAsFixed(10)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary)),
           ),
       ],
     );

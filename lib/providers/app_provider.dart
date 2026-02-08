@@ -291,28 +291,32 @@ class AppProvider with ChangeNotifier {
     return await _db.searchCustomers(query);
   }
 
-  /// Create a new customer
+  /// Create a new customer (offline-first: when online submits to server, when offline queues for sync).
   Future<bool> createCustomer(Customer customer) async {
     try {
-      // Save to local DB first
-      await _db.saveCustomer(customer);
-      
-      // Add to offline queue for sync
-      if (!_isOnline) {
-        await _db.addToOfflineQueue(
-          tableName: 'Customer',
-          operation: 'create',
-          uniqueField: 'local_unique_id',
-          uniqueFieldValue: customer.localUniqueId ?? '',
-          data: jsonEncode(customer.toCreateJson()),
-        );
-        await checkPendingSync();
+      if (_isOnline) {
+        // Submit to server when online
+        final response = await _api.createCustomer(customer);
+        if (response.success && response.data != null) {
+          await _db.saveCustomer(response.data!);
+          _customers = [..._customers, response.data!];
+          notifyListeners();
+          return true;
+        }
+        return false;
       }
-      
-      // Add to local list
+      // Offline: save locally and add to queue for later sync
+      await _db.saveCustomer(customer);
+      await _db.addToOfflineQueue(
+        tableName: 'Customer',
+        operation: 'create',
+        uniqueField: 'local_unique_id',
+        uniqueFieldValue: customer.localUniqueId ?? '',
+        data: jsonEncode(customer.toCreateJson()),
+      );
+      await checkPendingSync();
       _customers = [..._customers, customer];
       notifyListeners();
-      
       return true;
     } catch (e) {
       return false;

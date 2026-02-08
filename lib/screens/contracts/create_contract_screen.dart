@@ -26,13 +26,14 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
   final _depositController = TextEditingController(text: '0');
   String _paymentFrequency = 'DAILY';
   DateTime? _startDate;
-  DateTime? _endDate;
   final _releaseThresholdController = TextEditingController(text: '75');
 
   List<Product> _products = [];
   bool _loadingProducts = true;
   bool _isSubmitting = false;
   String? _errorMessage;
+  final TextEditingController _productSearchController = TextEditingController();
+  final TextEditingController _customerSearchController = TextEditingController();
 
   static const List<Map<String, String>> _frequencyOptions = [
     {'value': 'DAILY', 'label': 'Daily'},
@@ -52,6 +53,8 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
     _totalPriceController.dispose();
     _depositController.dispose();
     _releaseThresholdController.dispose();
+    _productSearchController.dispose();
+    _customerSearchController.dispose();
     super.dispose();
   }
 
@@ -75,8 +78,8 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
     });
   }
 
-  Future<void> _pickDate(bool isStart) async {
-    final initial = isStart ? (_startDate ?? DateTime.now()) : (_endDate ?? DateTime.now());
+  Future<void> _pickStartDate() async {
+    final initial = _startDate ?? DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -84,10 +87,7 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
       lastDate: DateTime(2030),
     );
     if (picked != null && mounted) {
-      setState(() {
-        if (isStart) _startDate = picked;
-        else _endDate = picked;
-      });
+      setState(() => _startDate = picked);
     }
   }
 
@@ -131,7 +131,6 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
     setState(() => _isSubmitting = true);
 
     final startStr = DateFormat('yyyy-MM-dd').format(_startDate!);
-    final endStr = _endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : null;
 
     final res = await _api.createContract(
       customerId: _selectedCustomer!.id,
@@ -140,7 +139,6 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
       depositAmount: deposit,
       paymentFrequency: _paymentFrequency,
       expectedStartDate: startStr,
-      expectedEndDate: endStr,
       releaseThresholdPercentage: threshold,
     );
 
@@ -159,7 +157,6 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appProvider = context.watch<AppProvider>();
     final currencyFormat = NumberFormat.currency(symbol: 'GHS ', decimalDigits: 2);
 
     return Scaffold(
@@ -204,49 +201,14 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
               // Customer
               const Text('Customer *', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              DropdownButtonFormField<Customer?>(
-                value: _selectedCustomer,
-                decoration: _inputDecoration(),
-                isExpanded: true,
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Select customer')),
-                  ...appProvider.customers
-                      .where((c) => c.isActive)
-                      .map((c) => DropdownMenuItem(
-                            value: c,
-                            child: Text(
-                              '${c.fullName} - ${c.phoneNumber}',
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ))
-                ],
-                onChanged: (c) => setState(() => _selectedCustomer = c),
-              ),
+              _buildSearchableCustomerField(),
               const SizedBox(height: 20),
               // Product
               const Text('Product *', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               _loadingProducts
                   ? const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()))
-                  : DropdownButtonFormField<Product?>(
-                      value: _selectedProduct,
-                      decoration: _inputDecoration(),
-                      isExpanded: true,
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('Select product')),
-                        ..._products
-                            .map((p) => DropdownMenuItem(
-                                  value: p,
-                                  child: Text(
-                                    '${p.name} - ${currencyFormat.format(p.sellingPrice)}',
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                ))
-                      ],
-                      onChanged: _onProductChanged,
-                    ),
+                  : _buildSearchableProductField(currencyFormat),
               const SizedBox(height: 20),
               // Total price & Deposit
               Row(
@@ -303,70 +265,33 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                 onChanged: (v) => setState(() => _paymentFrequency = v ?? 'DAILY'),
               ),
               const SizedBox(height: 20),
-              // Start & End date
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Start Date *', style: TextStyle(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 8),
-                        InkWell(
-                          onTap: () => _pickDate(true),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppTheme.dividerColor),
-                            ),
-                            child: Text(
-                              _startDate != null
-                                  ? DateFormat('yyyy-MM-dd').format(_startDate!)
-                                  : 'Select date',
-                              style: TextStyle(
-                                color: _startDate != null ? AppTheme.textPrimary : AppTheme.textHint,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+              // Start date (end date set to start + 3 months on backend)
+              const Text('Start Date *', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text(
+                'Expected end date will be 3 months after start date',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textHint),
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _pickStartDate,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.dividerColor),
+                  ),
+                  child: Text(
+                    _startDate != null
+                        ? DateFormat('yyyy-MM-dd').format(_startDate!)
+                        : 'Select date',
+                    style: TextStyle(
+                      color: _startDate != null ? AppTheme.textPrimary : AppTheme.textHint,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Expected End Date', style: TextStyle(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 8),
-                        InkWell(
-                          onTap: () => _pickDate(false),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppTheme.dividerColor),
-                            ),
-                            child: Text(
-                              _endDate != null
-                                  ? DateFormat('yyyy-MM-dd').format(_endDate!)
-                                  : 'Optional',
-                              style: TextStyle(
-                                color: _endDate != null ? AppTheme.textPrimary : AppTheme.textHint,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 20),
               // Release threshold
@@ -410,6 +335,274 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSearchableCustomerField() {
+    return InkWell(
+      onTap: () => _showCustomerSearchDialog(),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.dividerColor),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _selectedCustomer != null
+                    ? '${_selectedCustomer!.fullName} - ${_selectedCustomer!.phoneNumber}'
+                    : 'Search customer by name or phone',
+                style: TextStyle(
+                  color: _selectedCustomer != null ? AppTheme.textPrimary : AppTheme.textHint,
+                  fontSize: 16,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            Icon(
+              Icons.search,
+              color: AppTheme.textHint,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCustomerSearchDialog() async {
+    final appProvider = context.read<AppProvider>();
+    final customers = appProvider.customers.where((c) => c.isActive).toList();
+    _customerSearchController.clear();
+    List<Customer> filteredCustomers = List.from(customers);
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void filterCustomers(String query) {
+            setDialogState(() {
+              if (query.isEmpty) {
+                filteredCustomers = List.from(customers);
+              } else {
+                final lowerQuery = query.toLowerCase();
+                filteredCustomers = customers
+                    .where((c) =>
+                        c.fullName.toLowerCase().contains(lowerQuery) ||
+                        (c.phoneNumber.contains(query)))
+                    .toList();
+              }
+            });
+          }
+
+          return AlertDialog(
+            title: const Text('Search Customer'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _customerSearchController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name or phone number...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    onChanged: filterCustomers,
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: filteredCustomers.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(32.0),
+                            child: Text(
+                              'No customers found',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: filteredCustomers.length,
+                            itemBuilder: (context, index) {
+                              final customer = filteredCustomers[index];
+                              final isSelected = _selectedCustomer?.id == customer.id;
+                              return ListTile(
+                                title: Text(
+                                  customer.fullName,
+                                  style: TextStyle(
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                                subtitle: Text(customer.phoneNumber),
+                                selected: isSelected,
+                                onTap: () {
+                                  setState(() => _selectedCustomer = customer);
+                                  Navigator.of(context).pop();
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSearchableProductField(NumberFormat currencyFormat) {
+    return InkWell(
+      onTap: () => _showProductSearchDialog(currencyFormat),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.dividerColor),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _selectedProduct != null
+                    ? '${_selectedProduct!.name} - ${currencyFormat.format(_selectedProduct!.sellingPrice)}'
+                    : 'Search and select product',
+                style: TextStyle(
+                  color: _selectedProduct != null ? AppTheme.textPrimary : AppTheme.textHint,
+                  fontSize: 16,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            Icon(
+              Icons.search,
+              color: AppTheme.textHint,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showProductSearchDialog(NumberFormat currencyFormat) async {
+    _productSearchController.clear();
+    List<Product> filteredProducts = List.from(_products);
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void filterProducts(String query) {
+            setDialogState(() {
+              if (query.isEmpty) {
+                filteredProducts = List.from(_products);
+              } else {
+                final lowerQuery = query.toLowerCase();
+                filteredProducts = _products
+                    .where((p) =>
+                        p.name.toLowerCase().contains(lowerQuery) ||
+                        p.brand?.toLowerCase().contains(lowerQuery) == true ||
+                        p.categoryName.toLowerCase().contains(lowerQuery))
+                    .toList();
+              }
+            });
+          }
+
+          return AlertDialog(
+            title: const Text('Search Product'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _productSearchController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, brand, or category...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    onChanged: filterProducts,
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: filteredProducts.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(32.0),
+                            child: Text(
+                              'No products found',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: filteredProducts.length,
+                            itemBuilder: (context, index) {
+                              final product = filteredProducts[index];
+                              final isSelected = _selectedProduct?.id == product.id;
+                              return ListTile(
+                                title: Text(
+                                  product.name,
+                                  style: TextStyle(
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '${product.categoryName}${product.brand != null ? ' • ${product.brand}' : ''}',
+                                ),
+                                trailing: Text(
+                                  currencyFormat.format(product.sellingPrice),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                ),
+                                selected: isSelected,
+                                onTap: () {
+                                  _onProductChanged(product);
+                                  Navigator.of(context).pop();
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -8,9 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../config/app_theme.dart';
 import '../../providers/app_provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../models/customer.dart';
-import '../../services/api_service.dart';
 
 class AddCustomerScreen extends StatefulWidget {
   const AddCustomerScreen({super.key});
@@ -215,10 +213,19 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         });
         return;
       }
+      // Ensure we have fine location permission for highest accuracy
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+        setState(() {
+          _locationError = 'Fine location permission is required for accurate GPS coordinates.';
+        });
+        return;
+      }
+      // Use highest accuracy setting for best GPS precision
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 20), // Allow more time for GPS to get accurate fix
       ).timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 30),
         onTimeout: () => throw TimeoutException('Location request timed out'),
       );
       if (!mounted) return;
@@ -258,7 +265,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       // For now, we create customer without images
       // In a full implementation, you would upload images to a server first
       final customer = Customer(
-        id: 0, // Will be assigned by server
+        id: 0, // Will be assigned by server (or stay 0 if saved offline)
         fullName: _fullNameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
         email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
@@ -284,34 +291,31 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         isSynced: false,
         localUniqueId: localId,
       );
-      
-      final api = ApiService();
-      final result = await api.createCustomer(customer);
-      
+
+      final appProvider = context.read<AppProvider>();
+      final success = await appProvider.createCustomer(customer);
+
       if (!mounted) return;
-      
-      if (result.success) {
-        // If we have photos and customer was created, we could upload them here
-        // For now, just show success
-        
-        // Reload customers
-        final authProvider = context.read<AuthProvider>();
-        final appProvider = context.read<AppProvider>();
-        await appProvider.loadCustomers(agentId: authProvider.user?.id);
-        
-        // Show success message
+
+      if (success) {
+        final isOnline = appProvider.isOnline;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_passportPhoto != null || _idPhoto != null 
-                ? 'Customer added! Photos saved locally.'
-                : 'Customer added successfully!'),
+            content: Text(
+              isOnline
+                  ? (_passportPhoto != null || _idPhoto != null
+                      ? 'Customer added! Photos saved locally.'
+                      : 'Customer added successfully!')
+                  : 'Customer saved. Will sync to server when online.',
+            ),
             backgroundColor: AppTheme.completedStatus,
           ),
         );
         Navigator.pop(context, true);
       } else {
         setState(() {
-          _errorMessage = result.error ?? 'Failed to add customer';
+          _errorMessage = 'Failed to add customer. Check connection and try again.';
         });
       }
     } catch (e) {
@@ -929,7 +933,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
-              '${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
+              '${_latitude!.toStringAsFixed(10)}, ${_longitude!.toStringAsFixed(10)}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: AppTheme.textSecondary,
               ),

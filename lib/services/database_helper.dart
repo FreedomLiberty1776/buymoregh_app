@@ -228,7 +228,6 @@ class DatabaseHelper {
         await db.execute(sql);
       } catch (e) {
         // Column might already exist, continue
-        print('Migration warning: $e');
       }
     }
   }

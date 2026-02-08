@@ -213,6 +213,7 @@ class ApiService {
       
       return _handleResponse(response, (data) => Customer.fromJson(data));
     } catch (e) {
+      
       return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
     }
   }
@@ -517,9 +518,7 @@ class ApiService {
         'expected_start_date': expectedStartDate,
         'release_threshold_percentage': releaseThresholdPercentage,
       };
-      if (expectedEndDate != null && expectedEndDate.isNotEmpty) {
-        body['expected_end_date'] = expectedEndDate;
-      }
+      // expected_end_date is computed on backend as start_date + 3 months
       final response = await http.post(
         Uri.parse(ApiConfig.contracts),
         headers: await _getHeaders(),

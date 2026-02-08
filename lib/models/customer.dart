@@ -156,9 +156,9 @@ class Customer {
     if (occupation != null && occupation!.isNotEmpty) json['occupation'] = occupation;
     if (workplace != null && workplace!.isNotEmpty) json['workplace'] = workplace;
     if (monthlyIncome != null) json['monthly_income'] = monthlyIncome.toString();
-    // Send coordinates with 6 decimal places; skip if NaN or infinite (backend expects max 6 dp)
-    if (latitude != null && (latitude?.isFinite ?? false)) json['latitude'] = latitude!.toStringAsFixed(6);
-    if (longitude != null && (longitude?.isFinite ?? false)) json['longitude'] = longitude!.toStringAsFixed(6);
+    // Send full-precision coordinates (backend stores up to 20 decimal places)
+    if (latitude != null && (latitude?.isFinite ?? false)) json['latitude'] = latitude;
+    if (longitude != null && (longitude?.isFinite ?? false)) json['longitude'] = longitude;
     if (passportPhoto != null && passportPhoto!.isNotEmpty) json['passport_photo'] = passportPhoto;
     if (idPhoto != null && idPhoto!.isNotEmpty) json['id_photo'] = idPhoto;
     if (localUniqueId != null) json['client_reference'] = localUniqueId;
