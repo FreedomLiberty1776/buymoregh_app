@@ -40,6 +40,7 @@ class Contract {
   final String contractNumber;
   final int customerId;
   final String customerNumber;
+  final String customerPhone;
   final String customerName;
   final int productId;
   final String productName;
@@ -75,6 +76,7 @@ class Contract {
     this.contractNumber = '',
     required this.customerId,
     this.customerNumber = '',
+    this.customerPhone = '',
     required this.customerName,
     required this.productId,
     required this.productName,
@@ -116,6 +118,7 @@ class Contract {
       contractNumber: json['contract_number']?.toString() ?? '',
       customerId: json['customer'] ?? json['customer_id'] ?? 0,
       customerNumber: json['customer_number']?.toString() ?? '',
+      customerPhone: json['customer_phone']?.toString() ?? '',
       customerName: json['customer_name'] ?? '',
       productId: json['product'] ?? json['product_id'] ?? 0,
       productName: json['product_name'] ?? '',
@@ -171,6 +174,7 @@ class Contract {
       'id': id,
       'customer': customerId,
       'customer_number': customerNumber,
+      'customer_phone': customerPhone,
       'customer_name': customerName,
       'product': productId,
       'product_name': productName,
@@ -205,6 +209,7 @@ class Contract {
       'contract_number': contractNumber,
       'customer_id': customerId,
       'customer_number': customerNumber,
+      'customer_phone': customerPhone,
       'customer_name': customerName,
       'product_id': productId,
       'product_name': productName,
@@ -241,6 +246,7 @@ class Contract {
       contractNumber: json['contract_number']?.toString() ?? '',
       customerId: json['customer_id'] ?? 0,
       customerNumber: json['customer_number']?.toString() ?? '',
+      customerPhone: json['customer_phone']?.toString() ?? '',
       customerName: json['customer_name'] ?? '',
       productId: json['product_id'] ?? 0,
       productName: json['product_name'] ?? '',

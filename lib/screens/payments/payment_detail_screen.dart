@@ -5,14 +5,170 @@ import '../../config/app_theme.dart';
 import '../../models/payment.dart';
 import '../../providers/app_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
 
-class PaymentDetailScreen extends StatelessWidget {
+class PaymentDetailScreen extends StatefulWidget {
   final Payment payment;
 
   const PaymentDetailScreen({
     super.key,
     required this.payment,
   });
+
+  @override
+  State<PaymentDetailScreen> createState() => _PaymentDetailScreenState();
+}
+
+class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
+  final ApiService _apiService = ApiService();
+  bool _isCheckingDigitalStatus = false;
+  late Payment _payment;
+
+  Payment get payment => _payment;
+
+  @override
+  void initState() {
+    super.initState();
+    _payment = widget.payment;
+  }
+
+  Future<void> _checkDigitalStatus() async {
+    final reference = payment.paystackReference;
+    if (_isCheckingDigitalStatus || reference == null || reference.isEmpty) {
+      return;
+    }
+
+    setState(() => _isCheckingDigitalStatus = true);
+
+    try {
+      final response = await _apiService.getPaymentStatus(reference);
+      if (!mounted) return;
+
+      if (!response.success || response.data == null) {
+        throw Exception(response.error ?? 'Could not check payment status.');
+      }
+
+      final appProvider = context.read<AppProvider>();
+      final agentId = context.read<AuthProvider>().user?.id;
+      await appProvider.loadAllData(agentId: agentId, forceRefresh: true);
+
+      final status = response.data!;
+      final updatedPayment = _findUpdatedPayment(appProvider, status);
+      if (updatedPayment != null && mounted) {
+        setState(() {
+          _payment = updatedPayment;
+        });
+      } else if (mounted) {
+        setState(() {
+          _payment = _copyPaymentWithStatus(status);
+        });
+      }
+
+      final paystackStatus =
+          (status.paystackStatus ?? payment.paystackStatus ?? '').toUpperCase();
+      final approvalStatus =
+          (status.approvalStatus ??
+                  payment.approvalStatus.name.toUpperCase())
+              .toUpperCase();
+
+      String message;
+      Color color;
+      if (approvalStatus == 'APPROVED' || paystackStatus == 'SUCCESS') {
+        message = 'Payment confirmed and details refreshed.';
+        color = AppTheme.completedStatus;
+      } else if (approvalStatus == 'REJECTED' || paystackStatus == 'FAILED') {
+        message = 'This payment failed. The details have been refreshed.';
+        color = AppTheme.errorColor;
+      } else if (paystackStatus == 'SEND_OTP') {
+        message = 'This payment still requires OTP confirmation.';
+        color = AppTheme.warningColor;
+      } else {
+        message = 'Payment is still pending. You can check again later.';
+        color = AppTheme.warningColor;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not check payment status: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingDigitalStatus = false);
+      }
+    }
+  }
+
+  Payment? _findUpdatedPayment(
+    AppProvider appProvider,
+    PaymentStatusResult status,
+  ) {
+    final allPayments = <Payment>[
+      ...appProvider.payments,
+      ...appProvider.recentPayments,
+      ...appProvider.unsyncedPayments,
+    ];
+
+    for (final candidate in allPayments) {
+      final sameId = status.paymentId != null && candidate.id == status.paymentId;
+      final sameReference =
+          candidate.paystackReference != null &&
+          candidate.paystackReference == payment.paystackReference;
+      if (sameId || sameReference) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  Payment _copyPaymentWithStatus(PaymentStatusResult status) {
+    return Payment(
+      id: payment.id,
+      contractId: payment.contractId,
+      customerId: payment.customerId,
+      customerName: payment.customerName,
+      customerPhone: payment.customerPhone,
+      customerNumber: payment.customerNumber,
+      contractNumber: payment.contractNumber,
+      agentId: payment.agentId,
+      agentName: payment.agentName,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      momoPhone: payment.momoPhone,
+      approvalStatus: PaymentApprovalStatus.fromString(
+        status.approvalStatus ?? payment.approvalStatus.name,
+      ),
+      rejectionReason: payment.rejectionReason,
+      approvedAt: payment.approvedAt,
+      approvedBy: payment.approvedBy,
+      clientReference: payment.clientReference,
+      paystackReference: payment.paystackReference,
+      paystackStatus: status.paystackStatus ?? payment.paystackStatus,
+      paymentDate: payment.paymentDate,
+      createdAt: payment.createdAt,
+      updatedAt: DateTime.now(),
+      notes: payment.notes,
+      productName: payment.productName,
+      productId: payment.productId,
+      contractTotalAmount: payment.contractTotalAmount,
+      contractOutstandingBalance: payment.contractOutstandingBalance,
+      contractTotalPaid: payment.contractTotalPaid,
+      contractPaymentPercentage: payment.contractPaymentPercentage,
+      balanceBefore: payment.balanceBefore,
+      balanceAfter: payment.balanceAfter,
+      isSynced: payment.isSynced,
+      localUniqueId: payment.localUniqueId,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +204,11 @@ class PaymentDetailScreen extends StatelessWidget {
             
             // Status Card
             _buildStatusCard(context),
+
+            if (_hasDigitalCollectionStatus()) ...[
+              const SizedBox(height: 16),
+              _buildDigitalCollectionCard(context),
+            ],
             
             const SizedBox(height: 16),
             
@@ -311,6 +472,199 @@ class PaymentDetailScreen extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  bool _hasDigitalCollectionStatus() {
+    return payment.paymentMethod == PaymentMethod.mobileMoney ||
+        (payment.paystackReference != null && payment.paystackReference!.isNotEmpty) ||
+        (payment.paystackStatus != null && payment.paystackStatus!.isNotEmpty);
+  }
+
+  String _normalizedDigitalStatus() {
+    return (payment.paystackStatus ?? '').toUpperCase();
+  }
+
+  Color _getDigitalStatusColor() {
+    switch (_normalizedDigitalStatus()) {
+      case 'SUCCESS':
+        return AppTheme.completedStatus;
+      case 'FAILED':
+        return AppTheme.errorColor;
+      case 'SEND_OTP':
+      case 'PENDING':
+        return AppTheme.warningColor;
+      default:
+        return AppTheme.textSecondary;
+    }
+  }
+
+  IconData _getDigitalStatusIcon() {
+    switch (_normalizedDigitalStatus()) {
+      case 'SUCCESS':
+        return Icons.check_circle;
+      case 'FAILED':
+        return Icons.cancel;
+      case 'SEND_OTP':
+        return Icons.password;
+      case 'PENDING':
+        return Icons.schedule;
+      default:
+        return Icons.info;
+    }
+  }
+
+  String _getDigitalStatusLabel() {
+    final normalized = _normalizedDigitalStatus();
+    switch (normalized) {
+      case 'SUCCESS':
+        return 'Successful';
+      case 'FAILED':
+        return 'Failed';
+      case 'SEND_OTP':
+        return 'OTP Required';
+      case 'PENDING':
+        return 'Pending';
+      default:
+        return normalized.isEmpty ? 'Not Started' : normalized.replaceAll('_', ' ');
+    }
+  }
+
+  String _getDigitalStatusDescription() {
+    switch (_normalizedDigitalStatus()) {
+      case 'SUCCESS':
+        return 'Paystack has confirmed this mobile money collection.';
+      case 'FAILED':
+        return 'The mobile money collection did not complete successfully.';
+      case 'SEND_OTP':
+        return 'The customer still needs to provide an OTP from the phone.';
+      case 'PENDING':
+        return 'Waiting for customer approval or final Paystack confirmation.';
+      default:
+        return _normalizedDigitalStatus().isEmpty
+            ? 'No Paystack gateway status has been recorded yet.'
+            : 'Latest Paystack gateway status for this payment.';
+    }
+  }
+
+  Widget _buildDigitalCollectionCard(BuildContext context) {
+    final statusColor = _getDigitalStatusColor();
+    final statusIcon = _getDigitalStatusIcon();
+    final statusLabel = _getDigitalStatusLabel();
+    final statusDescription = _getDigitalStatusDescription();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Digital Collection',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: statusColor.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Icon(statusIcon, color: statusColor, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        statusLabel,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        statusDescription,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (payment.paystackReference != null && payment.paystackReference!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildInfoRow(
+              context,
+              Icons.confirmation_number,
+              'Paystack Ref',
+              payment.paystackReference!,
+            ),
+          ],
+          if (payment.paystackStatus != null && payment.paystackStatus!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildInfoRow(
+              context,
+              Icons.sync,
+              'Gateway Status',
+              payment.paystackStatus!.replaceAll('_', ' '),
+            ),
+          ],
+          if (payment.paystackReference != null &&
+              payment.paystackReference!.isNotEmpty &&
+              payment.approvalStatus == PaymentApprovalStatus.pending) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isCheckingDigitalStatus ? null : _checkDigitalStatus,
+                icon: _isCheckingDigitalStatus
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppTheme.primaryColor,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.sync),
+                label: Text(
+                  _isCheckingDigitalStatus ? 'Checking...' : 'Check Status',
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primaryColor,
+                  side: const BorderSide(color: AppTheme.primaryColor),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

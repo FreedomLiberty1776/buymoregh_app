@@ -523,30 +523,30 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
               ),
               child: Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Edit contract - for future implementation
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Edit feature coming soon'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Edit'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.primaryColor,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: const BorderSide(color: AppTheme.primaryColor),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                  // Expanded(
+                  //   child: OutlinedButton.icon(
+                  //     onPressed: () {
+                  //       // Edit contract - for future implementation
+                  //       ScaffoldMessenger.of(context).showSnackBar(
+                  //         const SnackBar(
+                  //           content: Text('Edit feature coming soon'),
+                  //           duration: Duration(seconds: 2),
+                  //         ),
+                  //       );
+                  //     },
+                  //     icon: const Icon(Icons.edit),
+                  //     label: const Text('Edit'),
+                  //     style: OutlinedButton.styleFrom(
+                  //       foregroundColor: AppTheme.primaryColor,
+                  //       padding: const EdgeInsets.symmetric(vertical: 14),
+                  //       side: const BorderSide(color: AppTheme.primaryColor),
+                  //       shape: RoundedRectangleBorder(
+                  //         borderRadius: BorderRadius.circular(8),
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
+                  // const SizedBox(width: 12),
                   Expanded(
                     flex: 2,
                     child: ElevatedButton.icon(

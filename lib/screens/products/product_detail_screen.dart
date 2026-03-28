@@ -49,7 +49,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final p = _product ?? widget.product;
-    final currencyFormat = NumberFormat.currency(symbol: 'GHS ', decimalDigits: 2);
+    final currencyFormat = NumberFormat.currency(
+      symbol: 'GHS ',
+      decimalDigits: 2,
+    );
     final imageUrl = _imageUrl(p);
 
     return Scaffold(
@@ -95,61 +98,62 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       children: [
                         Text(
                           p.name,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                          ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          p.subcategoryName != null && p.subcategoryName!.isNotEmpty
+                          p.subcategoryName != null &&
+                                  p.subcategoryName!.isNotEmpty
                               ? '${p.categoryName} / ${p.subcategoryName}'
                               : p.categoryName,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: AppTheme.textSecondary),
                         ),
                         if (p.brand != null && p.brand!.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             p.brand!,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.textHint,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppTheme.textHint),
                           ),
                         ],
                         const SizedBox(height: 16),
                         Text(
                           currencyFormat.format(p.sellingPrice),
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
-                          ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
                         ),
                         if (p.dailyRate != null && p.dailyRate! > 0) ...[
                           const SizedBox(height: 4),
                           Text(
                             'From ${currencyFormat.format(p.dailyRate)} / day',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppTheme.textSecondary),
                           ),
                         ],
-                        if (p.description != null && p.description!.isNotEmpty) ...[
+                        if (p.description != null &&
+                            p.description!.isNotEmpty) ...[
                           const SizedBox(height: 20),
                           Text(
                             'Description',
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                            ),
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             p.description!,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppTheme.textSecondary),
                           ),
                         ],
                       ],
@@ -166,7 +170,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Container(
       color: AppTheme.dividerColor,
       child: const Center(
-        child: Icon(Icons.inventory_2_outlined, size: 80, color: AppTheme.textHint),
+        child: Icon(
+          Icons.inventory_2_outlined,
+          size: 80,
+          color: AppTheme.textHint,
+        ),
       ),
     );
   }

@@ -570,6 +570,7 @@ class ApiService {
     required double amount,
     required String momoPhone,
     String? clientReference,
+    String? notes,
   }) async {
     try {
       final response = await http
@@ -579,8 +580,9 @@ class ApiService {
             body: jsonEncode({
               'contract_id': contractId,
               'amount': amount.toString(),
-              'momo_phone': momoPhone,
+              'phone': momoPhone,
               'client_reference': clientReference,
+              'notes': notes,
             }),
           )
           .timeout(ApiConfig.connectionTimeout);
@@ -588,6 +590,31 @@ class ApiService {
       return _handleResponse(
         response,
         (data) => PaystackInitResult.fromJson(data),
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
+    }
+  }
+
+  Future<ApiResponse<PaystackOtpResult>> submitPaymentOtp({
+    required String reference,
+    required String otp,
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse(ApiConfig.paymentOtp),
+            headers: await _getHeaders(),
+            body: jsonEncode({
+              'reference': reference,
+              'otp': otp,
+            }),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+
+      return _handleResponse(
+        response,
+        (data) => PaystackOtpResult.fromJson(data),
       );
     } catch (e) {
       return ApiResponse.error('Network error: $e', code: 'NETWORK_ERROR');
@@ -789,44 +816,94 @@ class LoginResult {
 }
 
 class PaystackInitResult {
+  final int? paymentId;
   final String reference;
-  final String status;
+  final String code;
+  final bool requiresOtp;
+  final bool paid;
   final String? displayText;
 
   PaystackInitResult({
+    this.paymentId,
     required this.reference,
-    required this.status,
+    required this.code,
+    required this.requiresOtp,
+    required this.paid,
     this.displayText,
   });
 
   factory PaystackInitResult.fromJson(Map<String, dynamic> json) {
+    final details =
+        json['details'] is Map<String, dynamic>
+            ? json['details'] as Map<String, dynamic>
+            : json;
     return PaystackInitResult(
-      reference: json['reference'] ?? '',
-      status: json['status'] ?? '',
-      displayText: json['display_text'],
+      paymentId: details['payment_id'] as int?,
+      reference: details['reference'] ?? '',
+      code: json['code'] ?? '',
+      requiresOtp: details['requires_otp'] == true,
+      paid: details['paid'] == true,
+      displayText: details['display_text'] ?? json['message'],
+    );
+  }
+}
+
+class PaystackOtpResult {
+  final String code;
+  final bool paid;
+  final String? displayText;
+
+  PaystackOtpResult({
+    required this.code,
+    required this.paid,
+    this.displayText,
+  });
+
+  factory PaystackOtpResult.fromJson(Map<String, dynamic> json) {
+    final details =
+        json['details'] is Map<String, dynamic>
+            ? json['details'] as Map<String, dynamic>
+            : json;
+    return PaystackOtpResult(
+      code: json['code'] ?? '',
+      paid: details['paid'] == true,
+      displayText: details['display_text'] ?? json['message'],
     );
   }
 }
 
 class PaymentStatusResult {
+  final int? paymentId;
   final String reference;
-  final String status;
+  final String code;
   final String? paystackStatus;
+  final String? approvalStatus;
   final double? amount;
+  final String? message;
 
   PaymentStatusResult({
+    this.paymentId,
     required this.reference,
-    required this.status,
+    required this.code,
     this.paystackStatus,
+    this.approvalStatus,
     this.amount,
+    this.message,
   });
 
   factory PaymentStatusResult.fromJson(Map<String, dynamic> json) {
+    final details =
+        json['details'] is Map<String, dynamic>
+            ? json['details'] as Map<String, dynamic>
+            : json;
     return PaymentStatusResult(
-      reference: json['reference'] ?? '',
-      status: json['status'] ?? '',
-      paystackStatus: json['paystack_status'],
-      amount: (json['amount'] as num?)?.toDouble(),
+      paymentId: details['payment_id'] as int?,
+      reference: details['reference'] ?? '',
+      code: json['code'] ?? '',
+      paystackStatus: details['paystack_status'],
+      approvalStatus: details['approval_status'],
+      amount: double.tryParse('${details['amount'] ?? ''}'),
+      message: json['message'],
     );
   }
 }
