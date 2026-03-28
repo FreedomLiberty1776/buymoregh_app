@@ -102,7 +102,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          p.categoryName,
+                          p.subcategoryName != null && p.subcategoryName!.isNotEmpty
+                              ? '${p.categoryName} / ${p.subcategoryName}'
+                              : p.categoryName,
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: AppTheme.textSecondary,
                           ),

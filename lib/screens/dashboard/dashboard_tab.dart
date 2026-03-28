@@ -221,7 +221,7 @@ class DashboardTab extends StatelessWidget {
                       _TapStatCard(
                         icon: Icons.inventory_2_outlined,
                         label: 'Products',
-                        value: 'View catalog',
+                        value: 'View Products',
                         valueColor: AppTheme.primaryColor,
                         isLoading: false,
                         onTap: () {

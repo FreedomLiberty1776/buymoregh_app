@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import 'config/app_theme.dart';
 import 'providers/auth_provider.dart';
@@ -40,7 +41,7 @@ class BuyMoreAgentApp extends StatelessWidget {
 /// Handles re-authentication when "require login every time" is enabled
 class AuthGuard extends StatefulWidget {
   final Widget child;
-  
+
   const AuthGuard({super.key, required this.child});
 
   @override
@@ -64,21 +65,31 @@ class _AuthGuardState extends State<AuthGuard> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final authProvider = context.read<AuthProvider>();
-    
     if (state == AppLifecycleState.paused) {
       _wasInBackground = true;
     } else if (state == AppLifecycleState.resumed && _wasInBackground) {
       _wasInBackground = false;
-      // Check if re-authentication is required when app resumes
-      authProvider.checkReauthenticationRequired();
+      unawaited(_handleResumeValidation());
     }
+  }
+
+  Future<void> _handleResumeValidation() async {
+    final authProvider = context.read<AuthProvider>();
+    final isValid = await authProvider.validateSession();
+    if (!mounted) return;
+
+    if (!isValid) {
+      Navigator.of(context).pushReplacementNamed('/login');
+      return;
+    }
+
+    await authProvider.checkReauthenticationRequired();
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    
+
     // If not authenticated, redirect to login
     if (!authProvider.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -86,7 +97,7 @@ class _AuthGuardState extends State<AuthGuard> with WidgetsBindingObserver {
       });
       return const SizedBox.shrink();
     }
-    
+
     // If re-authentication is required, show unlock screen
     if (authProvider.needsReauthentication) {
       return UnlockScreen(
@@ -95,7 +106,7 @@ class _AuthGuardState extends State<AuthGuard> with WidgetsBindingObserver {
         },
       );
     }
-    
+
     return widget.child;
   }
 }
@@ -120,23 +131,30 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _initializeApp() async {
     final authProvider = context.read<AuthProvider>();
-    
+
     // Initialize auth state
     await authProvider.initialize();
-    
+
     if (!mounted) return;
-    
-    // Navigate based on auth state
+
+    // Validate active session before entering the app
     if (authProvider.isAuthenticated) {
+      final isValid = await authProvider.validateSession();
+      if (!mounted) return;
+      if (!isValid) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+        return;
+      }
+
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const AuthGuard(child: MainScreen()),
-        ),
+        MaterialPageRoute(builder: (_) => const AuthGuard(child: MainScreen())),
       );
     } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
     }
   }
 
@@ -156,10 +174,15 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(
-                Icons.store,
-                color: AppTheme.primaryColor,
-                size: 60,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Image.asset(
+                    'assets/images/app_logo.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 24),

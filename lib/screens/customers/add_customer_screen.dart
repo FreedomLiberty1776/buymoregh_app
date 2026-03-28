@@ -31,7 +31,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _occupationController = TextEditingController();
   final _workplaceController = TextEditingController();
   final _monthlyIncomeController = TextEditingController();
-  
+
   // Photo files (optional)
   File? _passportPhoto;
   File? _idPhoto;
@@ -93,9 +93,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               const SizedBox(height: 16),
               Text(
                 isPassportPhoto ? 'Customer Photo' : 'ID Card Photo',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
               Row(
@@ -199,7 +199,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() {
-          _locationError = 'Location service is disabled. Enable it in device settings.';
+          _locationError =
+              'Location service is disabled. Enable it in device settings.';
         });
         return;
       }
@@ -207,27 +208,35 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         setState(() {
-          _locationError = 'Location permission is required to record coordinates.';
+          _locationError =
+              'Location permission is required to record coordinates.';
         });
         return;
       }
       // Ensure we have fine location permission for highest accuracy
-      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+      if (permission != LocationPermission.whileInUse &&
+          permission != LocationPermission.always) {
         setState(() {
-          _locationError = 'Fine location permission is required for accurate GPS coordinates.';
+          _locationError =
+              'Fine location permission is required for accurate GPS coordinates.';
         });
         return;
       }
       // Use highest accuracy setting for best GPS precision
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 20), // Allow more time for GPS to get accurate fix
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw TimeoutException('Location request timed out'),
-      );
+      Position position =
+          await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.best,
+            timeLimit: const Duration(
+              seconds: 20,
+            ), // Allow more time for GPS to get accurate fix
+          ).timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw TimeoutException('Location request timed out'),
+          );
       if (!mounted) return;
       setState(() {
         _latitude = position.latitude;
@@ -237,12 +246,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     } on TimeoutException {
       if (!mounted) return;
       setState(() {
-        _locationError = 'Location request timed out. Turn on GPS/location and try again, or move to a place with better signal.';
+        _locationError =
+            'Location request timed out. Turn on GPS/location and try again, or move to a place with better signal.';
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _locationError = 'Could not get location: ${e is Exception ? e.toString().replaceFirst('Exception: ', '') : e}';
+        _locationError =
+            'Could not get location: ${e is Exception ? e.toString().replaceFirst('Exception: ', '') : e}';
       });
     } finally {
       if (mounted) {
@@ -253,38 +264,49 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   Future<void> _submitCustomer() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
-    
+
     try {
       final localId = const Uuid().v4();
-      
-      // For now, we create customer without images
-      // In a full implementation, you would upload images to a server first
+
       final customer = Customer(
         id: 0, // Will be assigned by server (or stay 0 if saved offline)
         fullName: _fullNameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
-        email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
-        nationalId: _nationalIdController.text.trim().isNotEmpty ? _nationalIdController.text.trim() : null,
+        email: _emailController.text.trim().isNotEmpty
+            ? _emailController.text.trim()
+            : null,
+        nationalId: _nationalIdController.text.trim().isNotEmpty
+            ? _nationalIdController.text.trim()
+            : null,
         address: _addressController.text.trim(),
-        city: _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
+        city: _cityController.text.trim().isNotEmpty
+            ? _cityController.text.trim()
+            : null,
         region: _selectedRegion,
         latitude: _latitude,
         longitude: _longitude,
-        occupation: _occupationController.text.trim().isNotEmpty ? _occupationController.text.trim() : null,
-        workplace: _workplaceController.text.trim().isNotEmpty ? _workplaceController.text.trim() : null,
-        monthlyIncome: _monthlyIncomeController.text.trim().isNotEmpty 
-            ? double.tryParse(_monthlyIncomeController.text.trim()) 
+        occupation: _occupationController.text.trim().isNotEmpty
+            ? _occupationController.text.trim()
             : null,
-        // Photos will be uploaded separately if needed
+        workplace: _workplaceController.text.trim().isNotEmpty
+            ? _workplaceController.text.trim()
+            : null,
+        monthlyIncome: _monthlyIncomeController.text.trim().isNotEmpty
+            ? double.tryParse(_monthlyIncomeController.text.trim())
+            : null,
         passportPhoto: null,
         idPhoto: null,
-        nextOfKinName: _nokNameController.text.trim().isNotEmpty ? _nokNameController.text.trim() : null,
-        nextOfKinPhone: _nokPhoneController.text.trim().isNotEmpty ? _nokPhoneController.text.trim() : null,
+        nextOfKinName: _nokNameController.text.trim().isNotEmpty
+            ? _nokNameController.text.trim()
+            : null,
+        nextOfKinPhone: _nokPhoneController.text.trim().isNotEmpty
+            ? _nokPhoneController.text.trim()
+            : null,
         nextOfKinRelationship: _selectedNokRelationship,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -293,7 +315,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       );
 
       final appProvider = context.read<AppProvider>();
-      final success = await appProvider.createCustomer(customer);
+      final success = await appProvider.createCustomer(
+        customer,
+        passportPhotoFile: _passportPhoto,
+        idPhotoFile: _idPhoto,
+      );
 
       if (!mounted) return;
 
@@ -305,8 +331,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             content: Text(
               isOnline
                   ? (_passportPhoto != null || _idPhoto != null
-                      ? 'Customer added! Photos saved locally.'
-                      : 'Customer added successfully!')
+                        ? 'Customer added successfully with photos.'
+                        : 'Customer added successfully!')
                   : 'Customer saved. Will sync to server when online.',
             ),
             backgroundColor: AppTheme.completedStatus,
@@ -315,7 +341,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         Navigator.pop(context, true);
       } else {
         setState(() {
-          _errorMessage = 'Failed to add customer. Check connection and try again.';
+          if (!appProvider.isOnline &&
+              (_passportPhoto != null || _idPhoto != null)) {
+            _errorMessage =
+                'Photo upload requires internet connection. Remove photos or connect and try again.';
+          } else {
+            _errorMessage =
+                'Failed to add customer. Check connection and try again.';
+          }
         });
       }
     } catch (e) {
@@ -353,7 +386,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           return;
         }
       }
-      
+
       setState(() {
         _errorMessage = null;
         _currentStep++;
@@ -409,7 +442,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               ],
             ),
           ),
-          
+
           // Form Content
           Expanded(
             child: SingleChildScrollView(
@@ -427,11 +460,17 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         decoration: BoxDecoration(
                           color: AppTheme.errorColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
+                          border: Border.all(
+                            color: AppTheme.errorColor.withOpacity(0.3),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                            Icon(
+                              Icons.error_outline,
+                              color: AppTheme.errorColor,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -442,7 +481,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                           ],
                         ),
                       ),
-                    
+
                     // Step Content
                     if (_currentStep == 0) _buildPersonalInfoStep(),
                     if (_currentStep == 1) _buildAddressStep(),
@@ -452,13 +491,13 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               ),
             ),
           ),
-          
+
           // Bottom Buttons
           Container(
             padding: EdgeInsets.fromLTRB(
-              16, 
-              16, 
-              16, 
+              16,
+              16,
+              16,
               16 + MediaQuery.of(context).padding.bottom,
             ),
             decoration: BoxDecoration(
@@ -499,7 +538,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.5),
+                      disabledBackgroundColor: AppTheme.primaryColor
+                          .withOpacity(0.5),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
@@ -507,7 +547,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                             height: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : Text(
@@ -530,7 +572,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   Widget _buildStepIndicator(int step, String label) {
     final isActive = _currentStep >= step;
     final isCurrent = _currentStep == step;
-    
+
     return Expanded(
       child: Column(
         children: [
@@ -573,7 +615,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   Widget _buildStepConnector(int afterStep) {
     final isActive = _currentStep > afterStep;
-    
+
     return Container(
       height: 2,
       width: 40,
@@ -588,12 +630,12 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       children: [
         Text(
           'Personal Information',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        
+
         _buildTextField(
           controller: _fullNameController,
           label: 'Full Name',
@@ -601,7 +643,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           icon: Icons.person,
           required: true,
         ),
-        
+
         _buildTextField(
           controller: _phoneController,
           label: 'Phone Number',
@@ -614,7 +656,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             LengthLimitingTextInputFormatter(10),
           ],
         ),
-        
+
         _buildTextField(
           controller: _emailController,
           label: 'Email Address',
@@ -622,28 +664,28 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           icon: Icons.email,
           keyboardType: TextInputType.emailAddress,
         ),
-        
+
         _buildTextField(
           controller: _nationalIdController,
           label: 'National ID (Ghana Card)',
           hint: 'GHA-XXXXXXXXX-X',
           icon: Icons.badge,
         ),
-        
+
         _buildTextField(
           controller: _occupationController,
           label: 'Occupation',
           hint: 'e.g., Teacher, Trader',
           icon: Icons.work,
         ),
-        
+
         _buildTextField(
           controller: _workplaceController,
           label: 'Workplace',
           hint: 'Company/Business name',
           icon: Icons.business,
         ),
-        
+
         _buildTextField(
           controller: _monthlyIncomeController,
           label: 'Estimated Monthly Income (GHS)',
@@ -654,7 +696,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
           ],
         ),
-        
+
         // Photo section header
         const SizedBox(height: 8),
         Text(
@@ -665,7 +707,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // Photo upload buttons
         Row(
           children: [
@@ -675,9 +717,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 icon: Icons.person,
                 image: _passportPhoto,
                 onTap: () => _pickImage(true),
-                onRemove: _passportPhoto != null ? () {
-                  setState(() => _passportPhoto = null);
-                } : null,
+                onRemove: _passportPhoto != null
+                    ? () {
+                        setState(() => _passportPhoto = null);
+                      }
+                    : null,
               ),
             ),
             const SizedBox(width: 12),
@@ -687,9 +731,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 icon: Icons.credit_card,
                 image: _idPhoto,
                 onTap: () => _pickImage(false),
-                onRemove: _idPhoto != null ? () {
-                  setState(() => _idPhoto = null);
-                } : null,
+                onRemove: _idPhoto != null
+                    ? () {
+                        setState(() => _idPhoto = null);
+                      }
+                    : null,
               ),
             ),
           ],
@@ -713,7 +759,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: image != null ? AppTheme.primaryColor : AppTheme.dividerColor,
+            color: image != null
+                ? AppTheme.primaryColor
+                : AppTheme.dividerColor,
             width: image != null ? 2 : 1,
           ),
         ),
@@ -723,10 +771,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.file(
-                      image,
-                      fit: BoxFit.cover,
-                    ),
+                    child: Image.file(image, fit: BoxFit.cover),
                   ),
                   Positioned(
                     top: 4,
@@ -781,11 +826,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       color: AppTheme.backgroundColor,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      icon,
-                      size: 28,
-                      color: AppTheme.primaryColor,
-                    ),
+                    child: Icon(icon, size: 28, color: AppTheme.primaryColor),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -816,12 +857,12 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       children: [
         Text(
           'Address Information',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        
+
         _buildTextField(
           controller: _addressController,
           label: 'Street Address',
@@ -830,14 +871,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           required: true,
           maxLines: 2,
         ),
-        
+
         _buildTextField(
           controller: _cityController,
           label: 'City/Town',
           hint: 'e.g., Accra, Kumasi',
           icon: Icons.location_city,
         ),
-        
+
         // Region Dropdown
         Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -862,10 +903,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 value: null,
                 child: Text('-- Select Region --'),
               ),
-              ...ghanaRegions.map((region) => DropdownMenuItem(
-                value: region,
-                child: Text(region),
-              )),
+              ...ghanaRegions.map(
+                (region) =>
+                    DropdownMenuItem(value: region, child: Text(region)),
+              ),
             ],
             onChanged: (value) {
               setState(() => _selectedRegion = value);
@@ -894,9 +935,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.my_location, size: 20),
-                label: Text(_latitude != null && _longitude != null
-                    ? 'Location recorded'
-                    : 'Get location'),
+                label: Text(
+                  _latitude != null && _longitude != null
+                      ? 'Location recorded'
+                      : 'Get location',
+                ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: const BorderSide(color: AppTheme.primaryColor),
@@ -934,9 +977,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               '${_latitude!.toStringAsFixed(10)}, ${_longitude!.toStringAsFixed(10)}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
             ),
           ),
       ],
@@ -949,26 +992,26 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       children: [
         Text(
           'Next of Kin / Guarantor',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
           'Optional but recommended',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
         ),
         const SizedBox(height: 16),
-        
+
         _buildTextField(
           controller: _nokNameController,
           label: 'Full Name',
           hint: 'Next of kin\'s full name',
           icon: Icons.person_outline,
         ),
-        
+
         _buildTextField(
           controller: _nokPhoneController,
           label: 'Phone Number',
@@ -980,7 +1023,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             LengthLimitingTextInputFormatter(10),
           ],
         ),
-        
+
         // Relationship Dropdown
         Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -1005,26 +1048,23 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 value: null,
                 child: Text('-- Select Relationship --'),
               ),
-              ...nokRelationships.map((rel) => DropdownMenuItem(
-                value: rel,
-                child: Text(rel),
-              )),
+              ...nokRelationships.map(
+                (rel) => DropdownMenuItem(value: rel, child: Text(rel)),
+              ),
             ],
             onChanged: (value) {
               setState(() => _selectedNokRelationship = value);
             },
           ),
         ),
-        
+
         // Summary Info
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppTheme.primaryColor.withOpacity(0.05),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppTheme.primaryColor.withOpacity(0.2),
-            ),
+            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1051,9 +1091,15 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               _buildSummaryRow('Phone', _phoneController.text),
               _buildSummaryRow('Address', _addressController.text),
               if (_cityController.text.isNotEmpty)
-                _buildSummaryRow('City', '${_cityController.text}${_selectedRegion != null ? ', $_selectedRegion' : ''}'),
+                _buildSummaryRow(
+                  'City',
+                  '${_cityController.text}${_selectedRegion != null ? ', $_selectedRegion' : ''}',
+                ),
               if (_passportPhoto != null || _idPhoto != null)
-                _buildSummaryRow('Photos', '${_passportPhoto != null ? 'Customer Photo' : ''}${_passportPhoto != null && _idPhoto != null ? ', ' : ''}${_idPhoto != null ? 'ID Photo' : ''}'),
+                _buildSummaryRow(
+                  'Photos',
+                  '${_passportPhoto != null ? 'Customer Photo' : ''}${_passportPhoto != null && _idPhoto != null ? ', ' : ''}${_idPhoto != null ? 'ID Photo' : ''}',
+                ),
             ],
           ),
         ),
@@ -1085,7 +1131,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           hintText: hint,
-          prefixIcon: maxLines > 1 
+          prefixIcon: maxLines > 1
               ? Padding(
                   padding: const EdgeInsets.only(bottom: 24),
                   child: Icon(icon),
@@ -1112,7 +1158,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   Widget _buildSummaryRow(String label, String value) {
     if (value.isEmpty) return const SizedBox.shrink();
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -1122,17 +1168,17 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             width: 80,
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
         ],

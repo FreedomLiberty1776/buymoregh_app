@@ -5,7 +5,7 @@ enum ContractStatus {
   completed,
   defaulted,
   cancelled;
-  
+
   String get displayName {
     switch (this) {
       case ContractStatus.active:
@@ -18,7 +18,7 @@ enum ContractStatus {
         return 'Cancelled';
     }
   }
-  
+
   static ContractStatus fromString(String value) {
     switch (value.toUpperCase()) {
       case 'ACTIVE':
@@ -39,11 +39,18 @@ class Contract {
   final int id;
   final String contractNumber;
   final int customerId;
+  final String customerNumber;
   final String customerName;
   final int productId;
   final String productName;
   final int? agentId;
   final double totalAmount;
+  final double baseAmount;
+  final double configuredPenaltyAmount;
+  final double appliedPenaltyAmount;
+  final double totalAmountWithPenalty;
+  final bool penaltyApplied;
+  final String penaltyType;
   final double downPayment;
   final double totalPaid;
   final double outstandingBalance;
@@ -58,7 +65,7 @@ class Contract {
   final double monthlyInstallment;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
+
   // Sync tracking
   final bool isSynced;
   final String? localUniqueId;
@@ -67,11 +74,18 @@ class Contract {
     required this.id,
     this.contractNumber = '',
     required this.customerId,
+    this.customerNumber = '',
     required this.customerName,
     required this.productId,
     required this.productName,
     this.agentId,
     required this.totalAmount,
+    this.baseAmount = 0,
+    this.configuredPenaltyAmount = 0,
+    this.appliedPenaltyAmount = 0,
+    this.totalAmountWithPenalty = 0,
+    this.penaltyApplied = false,
+    this.penaltyType = 'NONE',
     required this.downPayment,
     required this.totalPaid,
     required this.outstandingBalance,
@@ -101,11 +115,22 @@ class Contract {
       id: json['id'] ?? 0,
       contractNumber: json['contract_number']?.toString() ?? '',
       customerId: json['customer'] ?? json['customer_id'] ?? 0,
+      customerNumber: json['customer_number']?.toString() ?? '',
       customerName: json['customer_name'] ?? '',
       productId: json['product'] ?? json['product_id'] ?? 0,
       productName: json['product_name'] ?? '',
       agentId: json['agent'] ?? json['agent_id'],
       totalAmount: _parseDouble(json['total_amount']),
+      baseAmount: _parseDouble(
+        json['base_amount'] ?? json['total_price'] ?? json['total_amount'],
+      ),
+      configuredPenaltyAmount: _parseDouble(json['configured_penalty_amount']),
+      appliedPenaltyAmount: _parseDouble(json['applied_penalty_amount']),
+      totalAmountWithPenalty: _parseDouble(
+        json['total_amount_with_penalty'] ?? json['total_amount'],
+      ),
+      penaltyApplied: json['penalty_applied'] == true,
+      penaltyType: json['penalty_type']?.toString() ?? 'NONE',
       downPayment: _parseDouble(json['down_payment']),
       totalPaid: _parseDouble(json['total_paid']),
       outstandingBalance: _parseDouble(json['outstanding_balance']),
@@ -114,21 +139,21 @@ class Contract {
       interestRate: _parseDouble(json['interest_rate']),
       status: ContractStatus.fromString(json['status'] ?? 'ACTIVE'),
       productDelivered: json['product_delivered'] == true,
-      startDate: json['start_date'] != null 
-          ? DateTime.parse(json['start_date']) 
+      startDate: json['start_date'] != null
+          ? DateTime.parse(json['start_date'])
           : DateTime.now(),
-      endDate: json['end_date'] != null 
-          ? DateTime.parse(json['end_date']) 
+      endDate: json['end_date'] != null
+          ? DateTime.parse(json['end_date'])
           : DateTime.now().add(const Duration(days: 365)),
-      nextPaymentDate: json['next_payment_date'] != null 
-          ? DateTime.parse(json['next_payment_date']) 
+      nextPaymentDate: json['next_payment_date'] != null
+          ? DateTime.parse(json['next_payment_date'])
           : null,
       monthlyInstallment: _parseDouble(json['monthly_installment']),
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at']) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
           : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at']) 
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
           : DateTime.now(),
     );
   }
@@ -145,11 +170,18 @@ class Contract {
     return {
       'id': id,
       'customer': customerId,
+      'customer_number': customerNumber,
       'customer_name': customerName,
       'product': productId,
       'product_name': productName,
       'agent': agentId,
       'total_amount': totalAmount.toString(),
+      'base_amount': baseAmount.toString(),
+      'configured_penalty_amount': configuredPenaltyAmount.toString(),
+      'applied_penalty_amount': appliedPenaltyAmount.toString(),
+      'total_amount_with_penalty': totalAmountWithPenalty.toString(),
+      'penalty_applied': penaltyApplied,
+      'penalty_type': penaltyType,
       'down_payment': downPayment.toString(),
       'total_paid': totalPaid.toString(),
       'outstanding_balance': outstandingBalance.toString(),
@@ -172,11 +204,18 @@ class Contract {
       'id': id,
       'contract_number': contractNumber,
       'customer_id': customerId,
+      'customer_number': customerNumber,
       'customer_name': customerName,
       'product_id': productId,
       'product_name': productName,
       'agent_id': agentId,
       'total_amount': totalAmount,
+      'base_amount': baseAmount,
+      'configured_penalty_amount': configuredPenaltyAmount,
+      'applied_penalty_amount': appliedPenaltyAmount,
+      'total_amount_with_penalty': totalAmountWithPenalty,
+      'penalty_applied': penaltyApplied ? 1 : 0,
+      'penalty_type': penaltyType,
       'down_payment': downPayment,
       'total_paid': totalPaid,
       'outstanding_balance': outstandingBalance,
@@ -201,11 +240,18 @@ class Contract {
       id: json['id'] ?? 0,
       contractNumber: json['contract_number']?.toString() ?? '',
       customerId: json['customer_id'] ?? 0,
+      customerNumber: json['customer_number']?.toString() ?? '',
       customerName: json['customer_name'] ?? '',
       productId: json['product_id'] ?? 0,
       productName: json['product_name'] ?? '',
       agentId: json['agent_id'],
       totalAmount: _parseDouble(json['total_amount']),
+      baseAmount: _parseDouble(json['base_amount']),
+      configuredPenaltyAmount: _parseDouble(json['configured_penalty_amount']),
+      appliedPenaltyAmount: _parseDouble(json['applied_penalty_amount']),
+      totalAmountWithPenalty: _parseDouble(json['total_amount_with_penalty']),
+      penaltyApplied: json['penalty_applied'] == 1,
+      penaltyType: json['penalty_type']?.toString() ?? 'NONE',
       downPayment: _parseDouble(json['down_payment']),
       totalPaid: _parseDouble(json['total_paid']),
       outstandingBalance: _parseDouble(json['outstanding_balance']),
@@ -214,21 +260,21 @@ class Contract {
       interestRate: _parseDouble(json['interest_rate']),
       status: ContractStatus.fromString(json['status'] ?? 'ACTIVE'),
       productDelivered: json['product_delivered'] == 1,
-      startDate: json['start_date'] != null 
-          ? DateTime.parse(json['start_date']) 
+      startDate: json['start_date'] != null
+          ? DateTime.parse(json['start_date'])
           : DateTime.now(),
-      endDate: json['end_date'] != null 
-          ? DateTime.parse(json['end_date']) 
+      endDate: json['end_date'] != null
+          ? DateTime.parse(json['end_date'])
           : DateTime.now().add(const Duration(days: 365)),
-      nextPaymentDate: json['next_payment_date'] != null 
-          ? DateTime.parse(json['next_payment_date']) 
+      nextPaymentDate: json['next_payment_date'] != null
+          ? DateTime.parse(json['next_payment_date'])
           : null,
       monthlyInstallment: _parseDouble(json['monthly_installment']),
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at']) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
           : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at']) 
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
           : DateTime.now(),
       isSynced: json['is_synced'] == 1,
       localUniqueId: json['local_unique_id'],

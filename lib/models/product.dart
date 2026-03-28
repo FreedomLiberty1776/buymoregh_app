@@ -5,6 +5,8 @@ class Product {
   final String? description;
   final int categoryId;
   final String categoryName;
+  final int? subcategoryId;
+  final String? subcategoryName;
   final double sellingPrice;
   final double? costPrice;
   final double? dailyRate;
@@ -18,6 +20,8 @@ class Product {
     this.description,
     required this.categoryId,
     required this.categoryName,
+    this.subcategoryId,
+    this.subcategoryName,
     required this.sellingPrice,
     this.costPrice,
     this.dailyRate,
@@ -46,6 +50,10 @@ class Product {
       description: json['description'],
       categoryId: json['category'] ?? json['category_id'] ?? 0,
       categoryName: json['category_name'] ?? '',
+      subcategoryId: json['subcategory'] ?? json['subcategory_id'],
+      subcategoryName: json['subcategory_name'] is String
+          ? json['subcategory_name'] as String?
+          : null,
       sellingPrice: _parseDouble(json['selling_price']),
       costPrice: json['cost_price'] != null ? _parseDouble(json['cost_price']) : null,
       dailyRate: json['daily_rate'] != null ? _parseDouble(json['daily_rate']) : null,

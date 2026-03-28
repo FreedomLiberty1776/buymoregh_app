@@ -20,9 +20,32 @@ class _ProductsScreenState extends State<ProductsScreen> {
   List<Product> _products = [];
   List<Category> _categories = [];
   int? _selectedCategoryId;
+  int? _selectedSubcategoryId;
   String _searchQuery = '';
   bool _isLoading = true;
   String? _error;
+
+  List<_SubcategoryOption> get _subcategoryOptions {
+    final unique = <int, _SubcategoryOption>{};
+    for (final product in _products) {
+      if (product.subcategoryId == null) continue;
+      final subcategoryName = product.subcategoryName?.trim() ?? '';
+      if (subcategoryName.isEmpty) continue;
+      if (_selectedCategoryId != null &&
+          product.categoryId != _selectedCategoryId) {
+        continue;
+      }
+      unique[product.subcategoryId!] = _SubcategoryOption(
+        id: product.subcategoryId!,
+        name: subcategoryName,
+        categoryId: product.categoryId,
+        categoryName: product.categoryName,
+      );
+    }
+    final list = unique.values.toList();
+    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
+  }
 
   @override
   void initState() {
@@ -52,6 +75,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final res = await _api.getProducts(
       search: _searchQuery.isEmpty ? null : _searchQuery,
       categoryId: _selectedCategoryId,
+      subcategoryId: _selectedSubcategoryId,
       isActive: true,
     );
     if (mounted) {
@@ -74,7 +98,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(symbol: 'GHS ', decimalDigits: 0);
+    final currencyFormat = NumberFormat.currency(
+      symbol: 'GHS ',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -122,7 +149,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -142,10 +172,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('All Categories')),
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('All Categories'),
+                    ),
                     ..._categories.map(
                       (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
                     ),
@@ -153,11 +189,53 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   onChanged: (value) {
                     setState(() {
                       _selectedCategoryId = value;
-                      _loadProducts();
+                      _selectedSubcategoryId = null;
                     });
+                    _loadProducts();
                   },
                 ),
-                if (_searchQuery.isNotEmpty || _selectedCategoryId != null) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int?>(
+                  value: _selectedSubcategoryId,
+                  decoration: InputDecoration(
+                    labelText: 'Subcategory',
+                    filled: true,
+                    fillColor: AppTheme.backgroundColor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('All Subcategories'),
+                    ),
+                    ..._subcategoryOptions.map(
+                      (s) => DropdownMenuItem(
+                        value: s.id,
+                        child: Text(
+                          _selectedCategoryId == null
+                              ? '${s.categoryName} / ${s.name}'
+                              : s.name,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedSubcategoryId = value;
+                    });
+                    _loadProducts();
+                  },
+                ),
+                if (_searchQuery.isNotEmpty ||
+                    _selectedCategoryId != null ||
+                    _selectedSubcategoryId != null) ...[
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () {
@@ -165,8 +243,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       setState(() {
                         _searchQuery = '';
                         _selectedCategoryId = null;
-                        _loadProducts();
+                        _selectedSubcategoryId = null;
                       });
+                      _loadProducts();
                     },
                     child: const Text('Clear'),
                   ),
@@ -174,7 +253,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.inventory_2_outlined, size: 18, color: AppTheme.textSecondary),
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 18,
+                      color: AppTheme.textSecondary,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       '${_products.length} products',
@@ -192,77 +275,100 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.error_outline, size: 48, color: AppTheme.errorColor),
-                              const SizedBox(height: 16),
-                              Text(
-                                _error!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: AppTheme.textSecondary),
-                              ),
-                              const SizedBox(height: 16),
-                              TextButton(
-                                onPressed: _loadProducts,
-                                child: const Text('Retry'),
-                              ),
-                            ],
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: AppTheme.errorColor,
                           ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppTheme.textSecondary),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: _loadProducts,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _products.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 64,
+                          color: AppTheme.textHint,
                         ),
-                      )
-                    : _products.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.inventory_2_outlined, size: 64, color: AppTheme.textHint),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No products found',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _loadProducts,
-                            child: GridView.builder(
-                              padding: const EdgeInsets.all(16),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                childAspectRatio: 0.62,
-                              ),
-                              itemCount: _products.length,
-                              itemBuilder: (context, index) {
-                                final product = _products[index];
-                                return _ProductCard(
-                                  product: product,
-                                  currencyFormat: currencyFormat,
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => ProductDetailScreen(product: product),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No products found',
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadProducts,
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 0.62,
                           ),
+                      itemCount: _products.length,
+                      itemBuilder: (context, index) {
+                        final product = _products[index];
+                        return _ProductCard(
+                          product: product,
+                          currencyFormat: currencyFormat,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ProductDetailScreen(product: product),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
     );
   }
+}
+
+class _SubcategoryOption {
+  final int id;
+  final String name;
+  final int categoryId;
+  final String categoryName;
+
+  const _SubcategoryOption({
+    required this.id,
+    required this.name,
+    required this.categoryId,
+    required this.categoryName,
+  });
 }
 
 class _ProductCard extends StatelessWidget {
@@ -309,7 +415,9 @@ class _ProductCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
               child: AspectRatio(
                 aspectRatio: 1,
                 child: imageUrl.isNotEmpty
@@ -339,7 +447,10 @@ class _ProductCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      product.categoryName,
+                      product.subcategoryName != null &&
+                              product.subcategoryName!.isNotEmpty
+                          ? '${product.categoryName} / ${product.subcategoryName}'
+                          : product.categoryName,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.textSecondary,
                         fontSize: 11,
@@ -347,7 +458,8 @@ class _ProductCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (product.dailyRate != null && product.dailyRate! > 0) ...[
+                    if (product.dailyRate != null &&
+                        product.dailyRate! > 0) ...[
                       const SizedBox(height: 1),
                       Text(
                         'From ${currencyFormat.format(product.dailyRate)}/day',
@@ -384,7 +496,11 @@ class _ProductCard extends StatelessWidget {
     return Container(
       color: AppTheme.dividerColor,
       child: const Center(
-        child: Icon(Icons.inventory_2_outlined, size: 48, color: AppTheme.textHint),
+        child: Icon(
+          Icons.inventory_2_outlined,
+          size: 48,
+          color: AppTheme.textHint,
+        ),
       ),
     );
   }

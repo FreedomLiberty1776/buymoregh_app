@@ -43,9 +43,9 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
     final appProvider = context.read<AppProvider>();
     final authProvider = context.read<AuthProvider>();
     final api = ApiService();
-    
+
     setState(() => _isLoading = true);
-    
+
     // Initialize with placeholder customer
     _customer = Customer(
       id: widget.customerId,
@@ -56,7 +56,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
     );
     _contracts = [];
     _recentPayments = [];
-    
+
     // Always try API first when online
     try {
       // Fetch customer details
@@ -64,15 +64,19 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
       if (customerResponse.success && customerResponse.data != null) {
         _customer = customerResponse.data!;
       }
-      
+
       // Fetch contracts for this specific customer from API
-      final contractsResponse = await api.getContractsForCustomer(widget.customerId);
+      final contractsResponse = await api.getContractsForCustomer(
+        widget.customerId,
+      );
       if (contractsResponse.success && contractsResponse.data != null) {
         _contracts = contractsResponse.data!;
       }
-      
+
       // Fetch payments for this specific customer from API
-      final paymentsResponse = await api.getPaymentsForCustomer(widget.customerId);
+      final paymentsResponse = await api.getPaymentsForCustomer(
+        widget.customerId,
+      );
       if (paymentsResponse.success && paymentsResponse.data != null) {
         _recentPayments = paymentsResponse.data!.take(10).toList();
       }
@@ -88,27 +92,30 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
           updatedAt: DateTime.now(),
         ),
       );
-      
+
       _contracts = appProvider.contracts
           .where((c) => c.customerId == widget.customerId)
           .toList();
-      
+
       _recentPayments = appProvider.payments
           .where((p) => p.customerId == widget.customerId)
           .take(10)
           .toList();
     }
-    
+
     setState(() => _isLoading = false);
-    
+
     // Refresh all data in the background
     final agentId = authProvider.user?.id;
     appProvider.loadAllData(agentId: agentId, forceRefresh: true);
   }
 
   @override
-  Widget build(BuildContext context) {                       
-    final currencyFormat = NumberFormat.currency(symbol: 'GHS ', decimalDigits: 2);
+  Widget build(BuildContext context) {
+    final currencyFormat = NumberFormat.currency(
+      symbol: 'GHS ',
+      decimalDigits: 2,
+    );
     final dateFormat = DateFormat('dd MMM yyyy');
 
     return Scaffold(
@@ -161,9 +168,9 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                     children: [
                       // Customer Info Card
                       _buildCustomerInfoCard(context),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Contracts Section
                       Text(
                         'Contracts',
@@ -172,20 +179,26 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      
+
                       if (_contracts.isEmpty)
                         _buildEmptyState(
                           icon: Icons.description_outlined,
                           message: 'No contracts found',
                         )
                       else
-                        ..._contracts.map((contract) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildContractCard(context, contract, currencyFormat),
-                        )),
-                      
+                        ..._contracts.map(
+                          (contract) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildContractCard(
+                              context,
+                              contract,
+                              currencyFormat,
+                            ),
+                          ),
+                        ),
+
                       const SizedBox(height: 24),
-                      
+
                       // Recent Payments Section
                       Text(
                         'Recent Payments',
@@ -194,25 +207,34 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      
+
                       if (_recentPayments.isEmpty)
                         _buildEmptyState(
                           icon: Icons.receipt_long_outlined,
                           message: 'No payments yet',
                         )
                       else
-                        ..._recentPayments.map((payment) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _buildPaymentItem(context, payment, currencyFormat, dateFormat, onTap: () {
-                            Navigator.push(
+                        ..._recentPayments.map(
+                          (payment) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _buildPaymentItem(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => PaymentDetailScreen(payment: payment),
-                              ),
-                            );
-                          }),
-                        )),
-                      
+                              payment,
+                              currencyFormat,
+                              dateFormat,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        PaymentDetailScreen(payment: payment),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+
                       const SizedBox(height: 100),
                     ],
                   ),
@@ -224,7 +246,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
 
   Widget _buildCustomerInfoCard(BuildContext context) {
     if (_customer == null) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -246,7 +268,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    _customer!.fullName.isNotEmpty 
+                    _customer!.fullName.isNotEmpty
                         ? _customer!.fullName[0].toUpperCase()
                         : '?',
                     style: const TextStyle(
@@ -280,9 +302,9 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
               ),
             ],
           ),
-          
+
           const Divider(height: 24),
-          
+
           // Contact Info
           _buildInfoRow(Icons.phone, _customer!.phoneNumber, context),
           if (_customer!.email != null && _customer!.email!.isNotEmpty)
@@ -291,21 +313,24 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
             _buildInfoRow(Icons.location_on, _customer!.address!, context),
           if (_customer!.city != null && _customer!.city!.isNotEmpty)
             _buildInfoRow(
-              Icons.place, 
+              Icons.place,
               '${_customer!.city}${_customer!.region != null ? ', ${_customer!.region}' : ''}',
               context,
             ),
-          
+
           // Employment Info
-          if (_customer!.occupation != null && _customer!.occupation!.isNotEmpty) ...[
+          if (_customer!.occupation != null &&
+              _customer!.occupation!.isNotEmpty) ...[
             const Divider(height: 24),
             _buildInfoRow(Icons.work, _customer!.occupation!, context),
-            if (_customer!.workplace != null && _customer!.workplace!.isNotEmpty)
+            if (_customer!.workplace != null &&
+                _customer!.workplace!.isNotEmpty)
               _buildInfoRow(Icons.business, _customer!.workplace!, context),
           ],
-          
+
           // Next of Kin
-          if (_customer!.nextOfKinName != null && _customer!.nextOfKinName!.isNotEmpty) ...[
+          if (_customer!.nextOfKinName != null &&
+              _customer!.nextOfKinName!.isNotEmpty) ...[
             const Divider(height: 24),
             Text(
               'Next of Kin',
@@ -316,10 +341,16 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
             ),
             const SizedBox(height: 8),
             _buildInfoRow(Icons.person, _customer!.nextOfKinName!, context),
-            if (_customer!.nextOfKinPhone != null && _customer!.nextOfKinPhone!.isNotEmpty)
+            if (_customer!.nextOfKinPhone != null &&
+                _customer!.nextOfKinPhone!.isNotEmpty)
               _buildInfoRow(Icons.phone, _customer!.nextOfKinPhone!, context),
-            if (_customer!.nextOfKinRelationship != null && _customer!.nextOfKinRelationship!.isNotEmpty)
-              _buildInfoRow(Icons.family_restroom, _customer!.nextOfKinRelationship!, context),
+            if (_customer!.nextOfKinRelationship != null &&
+                _customer!.nextOfKinRelationship!.isNotEmpty)
+              _buildInfoRow(
+                Icons.family_restroom,
+                _customer!.nextOfKinRelationship!,
+                context,
+              ),
           ],
         ],
       ),
@@ -334,10 +365,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
           Icon(icon, size: 18, color: AppTheme.textSecondary),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
           ),
         ],
       ),
@@ -371,81 +399,105 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Product and Status
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  contract.productName,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  contract.isOverdue ? 'Overdue' : contract.status.displayName,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Amounts
-          Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total Amount',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textSecondary,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product and Status
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    contract.productName,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
                     ),
                   ),
-                  Text(
-                    currencyFormat.format(contract.totalAmount),
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    contract.isOverdue
+                        ? 'Overdue'
+                        : contract.status.displayName,
+                    style: TextStyle(
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
+                      color: statusColor,
                     ),
                   ),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Paid',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textSecondary,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Amounts
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total Amount',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
-                  ),
-                  Text(
-                    currencyFormat.format(contract.totalPaid),
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.completedStatus,
+                    Text(
+                      currencyFormat.format(contract.totalAmount),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                  ],
+                ),
+                if (contract.appliedPenaltyAmount > 0)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Penalty',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '${currencyFormat.format(contract.appliedPenaltyAmount)} (Base: ${currencyFormat.format(contract.baseAmount)})',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.warningColor,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Paid',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      currencyFormat.format(contract.totalPaid),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.completedStatus,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Balance',
@@ -464,74 +516,73 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                     ),
                   ],
                 ),
-              
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Progress Bar
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: percentage / 100,
-                    backgroundColor: AppTheme.progressBackground,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      percentage >= 100
-                          ? AppTheme.completedStatus
-                          : AppTheme.progressFilled,
-                    ),
-                    minHeight: 8,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '${percentage.toStringAsFixed(0)}%',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          
-          // Add Payment Button
-          if (contract.status == ContractStatus.active) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddPaymentScreen(contract: contract),
-                    ),
-                  ).then((result) {
-                    if (result == true) {
-                      final agentId = authProvider.user?.id;
-                      appProvider.loadAllData(agentId: agentId);
-                      _loadCustomerData();
-                    }
-                  });
-                },
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Record Payment'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
+              ],
             ),
+
+            const SizedBox(height: 12),
+
+            // Progress Bar
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: percentage / 100,
+                      backgroundColor: AppTheme.progressBackground,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        percentage >= 100
+                            ? AppTheme.completedStatus
+                            : AppTheme.progressFilled,
+                      ),
+                      minHeight: 8,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '${percentage.toStringAsFixed(0)}%',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+
+            // Add Payment Button
+            if (contract.status == ContractStatus.active) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddPaymentScreen(contract: contract),
+                      ),
+                    ).then((result) {
+                      if (result == true) {
+                        final agentId = authProvider.user?.id;
+                        appProvider.loadAllData(agentId: agentId);
+                        _loadCustomerData();
+                      }
+                    });
+                  },
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Record Payment'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
-        ],
         ),
       ),
     );
@@ -595,7 +646,8 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                     ),
                   ),
                   // Show product name if available
-                  if (payment.productName != null && payment.productName!.isNotEmpty) ...[
+                  if (payment.productName != null &&
+                      payment.productName!.isNotEmpty) ...[
                     Text(
                       payment.productName!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -650,10 +702,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
           children: [
             Icon(icon, size: 48, color: AppTheme.textHint),
             const SizedBox(height: 8),
-            Text(
-              message,
-              style: TextStyle(color: AppTheme.textSecondary),
-            ),
+            Text(message, style: TextStyle(color: AppTheme.textSecondary)),
           ],
         ),
       ),

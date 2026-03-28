@@ -58,6 +58,13 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
   bool _isLoadingLocation = false;
   String? _locationError;
 
+  bool get _isNationalIdLocked => (_customer?.nationalId ?? '').isNotEmpty;
+  bool get _isPassportPhotoLocked =>
+      (_customer?.passportPhoto ?? '').isNotEmpty;
+  bool get _isIdPhotoLocked => (_customer?.idPhoto ?? '').isNotEmpty;
+  bool get _isLocationLocked =>
+      _customer?.latitude != null || _customer?.longitude != null;
+
   @override
   void initState() {
     super.initState();
@@ -102,13 +109,15 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
       _addressController.text = _customer!.address ?? '';
       _cityController.text = _customer!.city ?? '';
       final region = _customer!.region;
-      _selectedRegion = (region != null && region.isNotEmpty && ghanaRegions.contains(region))
+      _selectedRegion =
+          (region != null && region.isNotEmpty && ghanaRegions.contains(region))
           ? region
           : null;
       _nokNameController.text = _customer!.nextOfKinName ?? '';
       _nokPhoneController.text = _customer!.nextOfKinPhone ?? '';
       final rel = _customer!.nextOfKinRelationship;
-      _selectedNokRelationship = (rel != null && rel.isNotEmpty && nokRelationships.contains(rel))
+      _selectedNokRelationship =
+          (rel != null && rel.isNotEmpty && nokRelationships.contains(rel))
           ? rel
           : null;
       _latitude = _customer!.latitude;
@@ -129,7 +138,8 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
       if (!serviceEnabled) {
         if (!mounted) return;
         setState(() {
-          _locationError = 'Location service is disabled. Enable it in device settings.';
+          _locationError =
+              'Location service is disabled. Enable it in device settings.';
           _isLoadingLocation = false;
         });
         return;
@@ -142,28 +152,35 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
           permission == LocationPermission.deniedForever) {
         if (!mounted) return;
         setState(() {
-          _locationError = 'Location permission is required to record coordinates.';
+          _locationError =
+              'Location permission is required to record coordinates.';
           _isLoadingLocation = false;
         });
         return;
       }
       // Ensure we have fine location permission for highest accuracy
-      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+      if (permission != LocationPermission.whileInUse &&
+          permission != LocationPermission.always) {
         if (!mounted) return;
         setState(() {
-          _locationError = 'Fine location permission is required for accurate GPS coordinates.';
+          _locationError =
+              'Fine location permission is required for accurate GPS coordinates.';
           _isLoadingLocation = false;
         });
         return;
       }
       // Use highest accuracy setting for best GPS precision
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 20), // Allow more time for GPS to get accurate fix
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw TimeoutException('Location request timed out'),
-      );
+      final position =
+          await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.best,
+            timeLimit: const Duration(
+              seconds: 20,
+            ), // Allow more time for GPS to get accurate fix
+          ).timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw TimeoutException('Location request timed out'),
+          );
       if (!mounted) return;
       setState(() {
         _latitude = position.latitude;
@@ -179,7 +196,8 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _locationError = 'Could not get location: ${e is Exception ? e.toString().replaceFirst('Exception: ', '') : e}';
+        _locationError =
+            'Could not get location: ${e is Exception ? e.toString().replaceFirst('Exception: ', '') : e}';
       });
     } finally {
       if (mounted) setState(() => _isLoadingLocation = false);
@@ -187,6 +205,11 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
   }
 
   Future<void> _pickImage(bool isPassportPhoto) async {
+    if ((isPassportPhoto && _isPassportPhotoLocked) ||
+        (!isPassportPhoto && _isIdPhotoLocked)) {
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -210,9 +233,9 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
               const SizedBox(height: 16),
               Text(
                 isPassportPhoto ? 'Customer Photo' : 'ID Card Photo',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
               Row(
@@ -287,22 +310,36 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
         customerNumber: _customer!.customerNumber,
         fullName: _fullNameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
-        email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
-        nationalId: _nationalIdController.text.trim().isNotEmpty ? _nationalIdController.text.trim() : null,
+        email: _emailController.text.trim().isNotEmpty
+            ? _emailController.text.trim()
+            : null,
+        nationalId: _nationalIdController.text.trim().isNotEmpty
+            ? _nationalIdController.text.trim()
+            : null,
         address: _addressController.text.trim(),
-        city: _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
+        city: _cityController.text.trim().isNotEmpty
+            ? _cityController.text.trim()
+            : null,
         region: _selectedRegion,
         latitude: _latitude,
         longitude: _longitude,
-        occupation: _occupationController.text.trim().isNotEmpty ? _occupationController.text.trim() : null,
-        workplace: _workplaceController.text.trim().isNotEmpty ? _workplaceController.text.trim() : null,
+        occupation: _occupationController.text.trim().isNotEmpty
+            ? _occupationController.text.trim()
+            : null,
+        workplace: _workplaceController.text.trim().isNotEmpty
+            ? _workplaceController.text.trim()
+            : null,
         monthlyIncome: _monthlyIncomeController.text.trim().isNotEmpty
             ? double.tryParse(_monthlyIncomeController.text.trim())
             : null,
         passportPhoto: null,
         idPhoto: null,
-        nextOfKinName: _nokNameController.text.trim().isNotEmpty ? _nokNameController.text.trim() : null,
-        nextOfKinPhone: _nokPhoneController.text.trim().isNotEmpty ? _nokPhoneController.text.trim() : null,
+        nextOfKinName: _nokNameController.text.trim().isNotEmpty
+            ? _nokNameController.text.trim()
+            : null,
+        nextOfKinPhone: _nokPhoneController.text.trim().isNotEmpty
+            ? _nokPhoneController.text.trim()
+            : null,
         nextOfKinRelationship: _selectedNokRelationship,
         createdAt: _customer!.createdAt,
         updatedAt: DateTime.now(),
@@ -310,7 +347,12 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
         localUniqueId: null,
       );
       final api = ApiService();
-      final result = await api.updateCustomer(widget.customerId, customer);
+      final result = await api.updateCustomer(
+        widget.customerId,
+        customer,
+        passportPhotoFile: _isPassportPhotoLocked ? null : _passportPhoto,
+        idPhotoFile: _isIdPhotoLocked ? null : _idPhoto,
+      );
       if (!mounted) return;
       if (result.success) {
         final authProvider = context.read<AuthProvider>();
@@ -474,11 +516,17 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
                         decoration: BoxDecoration(
                           color: AppTheme.errorColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
+                          border: Border.all(
+                            color: AppTheme.errorColor.withOpacity(0.3),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                            Icon(
+                              Icons.error_outline,
+                              color: AppTheme.errorColor,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -542,7 +590,8 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.5),
+                      disabledBackgroundColor: AppTheme.primaryColor
+                          .withOpacity(0.5),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
@@ -550,7 +599,9 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
                             height: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : Text(
@@ -629,26 +680,116 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
       children: [
         Text(
           'Personal Information',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        _buildTextField(controller: _fullNameController, label: 'Full Name', hint: 'Enter customer\'s full name', icon: Icons.person, required: true),
-        _buildTextField(controller: _phoneController, label: 'Phone Number', hint: 'e.g., 0244123456', icon: Icons.phone, keyboardType: TextInputType.phone, required: true, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)]),
-        _buildTextField(controller: _emailController, label: 'Email Address', hint: 'customer@email.com', icon: Icons.email, keyboardType: TextInputType.emailAddress),
-        _buildTextField(controller: _nationalIdController, label: 'National ID (Ghana Card)', hint: 'GHA-XXXXXXXXX-X', icon: Icons.badge),
-        _buildTextField(controller: _occupationController, label: 'Occupation', hint: 'e.g., Teacher, Trader', icon: Icons.work),
-        _buildTextField(controller: _workplaceController, label: 'Workplace', hint: 'Company/Business name', icon: Icons.business),
-        _buildTextField(controller: _monthlyIncomeController, label: 'Estimated Monthly Income (GHS)', hint: '0.00', icon: Icons.payments, keyboardType: const TextInputType.numberWithOptions(decimal: true), inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))]),
+        _buildTextField(
+          controller: _fullNameController,
+          label: 'Full Name',
+          hint: 'Enter customer\'s full name',
+          icon: Icons.person,
+          required: true,
+        ),
+        _buildTextField(
+          controller: _phoneController,
+          label: 'Phone Number',
+          hint: 'e.g., 0244123456',
+          icon: Icons.phone,
+          keyboardType: TextInputType.phone,
+          required: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(10),
+          ],
+        ),
+        _buildTextField(
+          controller: _emailController,
+          label: 'Email Address',
+          hint: 'customer@email.com',
+          icon: Icons.email,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        _buildTextField(
+          controller: _nationalIdController,
+          label: 'National ID (Ghana Card)',
+          hint: 'GHA-XXXXXXXXX-X',
+          icon: Icons.badge,
+          enabled: !_isNationalIdLocked,
+        ),
+        if (_isNationalIdLocked)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              'National ID is locked after first submission.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+            ),
+          ),
+        _buildTextField(
+          controller: _occupationController,
+          label: 'Occupation',
+          hint: 'e.g., Teacher, Trader',
+          icon: Icons.work,
+        ),
+        _buildTextField(
+          controller: _workplaceController,
+          label: 'Workplace',
+          hint: 'Company/Business name',
+          icon: Icons.business,
+        ),
+        _buildTextField(
+          controller: _monthlyIncomeController,
+          label: 'Estimated Monthly Income (GHS)',
+          hint: '0.00',
+          icon: Icons.payments,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+          ],
+        ),
         const SizedBox(height: 8),
-        Text('Documents (Optional)', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
+        Text(
+          'Documents (Optional)',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildPhotoUploadCard(label: 'Customer Photo', icon: Icons.person, image: _passportPhoto, onTap: () => _pickImage(true), onRemove: _passportPhoto != null ? () => setState(() => _passportPhoto = null) : null)),
+            Expanded(
+              child: _buildPhotoUploadCard(
+                label: 'Customer Photo',
+                icon: Icons.person,
+                image: _passportPhoto,
+                existingImageUrl: _customer?.passportPhoto,
+                enabled: !_isPassportPhotoLocked,
+                locked: _isPassportPhotoLocked,
+                onTap: () => _pickImage(true),
+                onRemove: (!_isPassportPhotoLocked && _passportPhoto != null)
+                    ? () => setState(() => _passportPhoto = null)
+                    : null,
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _buildPhotoUploadCard(label: 'ID Card Photo', icon: Icons.credit_card, image: _idPhoto, onTap: () => _pickImage(false), onRemove: _idPhoto != null ? () => setState(() => _idPhoto = null) : null)),
+            Expanded(
+              child: _buildPhotoUploadCard(
+                label: 'ID Card Photo',
+                icon: Icons.credit_card,
+                image: _idPhoto,
+                existingImageUrl: _customer?.idPhoto,
+                enabled: !_isIdPhotoLocked,
+                locked: _isIdPhotoLocked,
+                onTap: () => _pickImage(false),
+                onRemove: (!_isIdPhotoLocked && _idPhoto != null)
+                    ? () => setState(() => _idPhoto = null)
+                    : null,
+              ),
+            ),
           ],
         ),
       ],
@@ -659,63 +800,143 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Address Information', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          'Address Information',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 16),
-        _buildTextField(controller: _addressController, label: 'Street Address', hint: 'House number, Street name, Landmark', icon: Icons.home, required: true, maxLines: 2),
-        _buildTextField(controller: _cityController, label: 'City/Town', hint: 'e.g., Accra, Kumasi', icon: Icons.location_city),
+        _buildTextField(
+          controller: _addressController,
+          label: 'Street Address',
+          hint: 'House number, Street name, Landmark',
+          icon: Icons.home,
+          required: true,
+          maxLines: 2,
+        ),
+        _buildTextField(
+          controller: _cityController,
+          label: 'City/Town',
+          hint: 'e.g., Accra, Kumasi',
+          icon: Icons.location_city,
+        ),
         Container(
           margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: DropdownButtonFormField<String>(
-            value: _selectedRegion != null && ghanaRegions.contains(_selectedRegion)
+            value:
+                _selectedRegion != null &&
+                    ghanaRegions.contains(_selectedRegion)
                 ? _selectedRegion
                 : null,
             decoration: InputDecoration(
               labelText: 'Region',
               prefixIcon: const Icon(Icons.map),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
               filled: true,
               fillColor: Colors.white,
             ),
-            items: [const DropdownMenuItem<String>(value: null, child: Text('-- Select Region --')), ...ghanaRegions.map((region) => DropdownMenuItem(value: region, child: Text(region)))],
+            items: [
+              const DropdownMenuItem<String>(
+                value: null,
+                child: Text('-- Select Region --'),
+              ),
+              ...ghanaRegions.map(
+                (region) =>
+                    DropdownMenuItem(value: region, child: Text(region)),
+              ),
+            ],
             onChanged: (value) => setState(() => _selectedRegion = value),
           ),
         ),
         const SizedBox(height: 8),
-        Text('Location (optional)', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
+        Text(
+          'Location (optional)',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _isLoadingLocation ? null : _getCurrentLocation,
-                icon: _isLoadingLocation ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.my_location, size: 20),
-                label: Text(_latitude != null && _longitude != null ? 'Recapture location' : 'Get location'),
+                onPressed: (_isLoadingLocation || _isLocationLocked)
+                    ? null
+                    : _getCurrentLocation,
+                icon: _isLoadingLocation
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location, size: 20),
+                label: Text(
+                  _isLocationLocked
+                      ? 'Location locked'
+                      : (_latitude != null && _longitude != null
+                            ? 'Recapture location'
+                            : 'Get location'),
+                ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: const BorderSide(color: AppTheme.primaryColor),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
-            if (_latitude != null && _longitude != null) ...[
+            if (_latitude != null &&
+                _longitude != null &&
+                !_isLocationLocked) ...[
               const SizedBox(width: 8),
               IconButton(
-                onPressed: () => setState(() { _latitude = null; _longitude = null; _locationError = null; }),
+                onPressed: () => setState(() {
+                  _latitude = null;
+                  _longitude = null;
+                  _locationError = null;
+                }),
                 icon: const Icon(Icons.clear),
                 tooltip: 'Clear location',
               ),
             ],
           ],
         ),
+        if (_isLocationLocked)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              'Coordinates are locked after first submission.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+            ),
+          ),
         if (_locationError != null) ...[
           const SizedBox(height: 6),
-          Text(_locationError!, style: TextStyle(color: AppTheme.errorColor, fontSize: 12)),
+          Text(
+            _locationError!,
+            style: TextStyle(color: AppTheme.errorColor, fontSize: 12),
+          ),
         ],
         if (_latitude != null && _longitude != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text('${_latitude!.toStringAsFixed(10)}, ${_longitude!.toStringAsFixed(10)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary)),
+            child: Text(
+              '${_latitude!.toStringAsFixed(10)}, ${_longitude!.toStringAsFixed(10)}',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+            ),
           ),
       ],
     );
@@ -725,43 +946,113 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Next of Kin / Guarantor', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          'Next of Kin / Guarantor',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
-        Text('Optional but recommended', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary)),
+        Text(
+          'Optional but recommended',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+        ),
         const SizedBox(height: 16),
-        _buildTextField(controller: _nokNameController, label: 'Full Name', hint: 'Next of kin\'s full name', icon: Icons.person_outline),
-        _buildTextField(controller: _nokPhoneController, label: 'Phone Number', hint: 'e.g., 0244123456', icon: Icons.phone, keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)]),
+        _buildTextField(
+          controller: _nokNameController,
+          label: 'Full Name',
+          hint: 'Next of kin\'s full name',
+          icon: Icons.person_outline,
+        ),
+        _buildTextField(
+          controller: _nokPhoneController,
+          label: 'Phone Number',
+          hint: 'e.g., 0244123456',
+          icon: Icons.phone,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(10),
+          ],
+        ),
         Container(
           margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: DropdownButtonFormField<String>(
-            value: _selectedNokRelationship != null && nokRelationships.contains(_selectedNokRelationship)
+            value:
+                _selectedNokRelationship != null &&
+                    nokRelationships.contains(_selectedNokRelationship)
                 ? _selectedNokRelationship
                 : null,
             decoration: InputDecoration(
               labelText: 'Relationship',
               prefixIcon: const Icon(Icons.family_restroom),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
               filled: true,
               fillColor: Colors.white,
             ),
-            items: [const DropdownMenuItem<String>(value: null, child: Text('-- Select Relationship --')), ...nokRelationships.map((rel) => DropdownMenuItem(value: rel, child: Text(rel)))],
-            onChanged: (value) => setState(() => _selectedNokRelationship = value),
+            items: [
+              const DropdownMenuItem<String>(
+                value: null,
+                child: Text('-- Select Relationship --'),
+              ),
+              ...nokRelationships.map(
+                (rel) => DropdownMenuItem(value: rel, child: Text(rel)),
+              ),
+            ],
+            onChanged: (value) =>
+                setState(() => _selectedNokRelationship = value),
           ),
         ),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2))),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [Icon(Icons.info_outline, size: 18, color: AppTheme.primaryColor), const SizedBox(width: 8), Text('Summary', style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.primaryColor))]),
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: AppTheme.primaryColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Summary',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               _buildSummaryRow('Name', _fullNameController.text),
               _buildSummaryRow('Phone', _phoneController.text),
               _buildSummaryRow('Address', _addressController.text),
-              if (_cityController.text.isNotEmpty) _buildSummaryRow('City', '${_cityController.text}${_selectedRegion != null ? ', $_selectedRegion' : ''}'),
-              if (_passportPhoto != null || _idPhoto != null) _buildSummaryRow('Photos', '${_passportPhoto != null ? 'Customer Photo' : ''}${_passportPhoto != null && _idPhoto != null ? ', ' : ''}${_idPhoto != null ? 'ID Photo' : ''}'),
+              if (_cityController.text.isNotEmpty)
+                _buildSummaryRow(
+                  'City',
+                  '${_cityController.text}${_selectedRegion != null ? ', $_selectedRegion' : ''}',
+                ),
+              if (_passportPhoto != null || _idPhoto != null)
+                _buildSummaryRow(
+                  'Photos',
+                  '${_passportPhoto != null ? 'Customer Photo' : ''}${_passportPhoto != null && _idPhoto != null ? ', ' : ''}${_idPhoto != null ? 'ID Photo' : ''}',
+                ),
             ],
           ),
         ),
@@ -773,43 +1064,161 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
     required String label,
     required IconData icon,
     required File? image,
+    String? existingImageUrl,
+    bool enabled = true,
+    bool locked = false,
     required VoidCallback onTap,
     VoidCallback? onRemove,
   }) {
+    final hasExistingImage =
+        (existingImageUrl ?? '').isNotEmpty && image == null;
+
     return GestureDetector(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       child: Container(
         height: 140,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: image != null ? AppTheme.primaryColor : AppTheme.dividerColor, width: image != null ? 2 : 1),
+          border: Border.all(
+            color: image != null
+                ? AppTheme.primaryColor
+                : AppTheme.dividerColor,
+            width: image != null ? 2 : 1,
+          ),
         ),
         child: image != null
             ? Stack(
                 fit: StackFit.expand,
                 children: [
-                  ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(image, fit: BoxFit.cover)),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(image, fit: BoxFit.cover),
+                  ),
                   if (onRemove != null)
                     Positioned(
                       top: 4,
                       right: 4,
                       child: GestureDetector(
                         onTap: onRemove,
-                        child: Container(padding: const EdgeInsets.all(4), decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle), child: const Icon(Icons.close, color: Colors.white, size: 16)),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
                       ),
                     ),
-                  Positioned(bottom: 0, left: 0, right: 0, child: Container(padding: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: Colors.black54, borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10))), child: Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)))),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               )
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppTheme.backgroundColor, shape: BoxShape.circle), child: Icon(icon, size: 28, color: AppTheme.primaryColor)),
-                  const SizedBox(height: 8),
-                  Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.textSecondary)),
-                  const SizedBox(height: 4),
-                  Text('Tap to add', style: TextStyle(fontSize: 10, color: AppTheme.primaryColor)),
+                  if (hasExistingImage)
+                    Expanded(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              existingImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Icon(
+                                  icon,
+                                  size: 28,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: const BorderRadius.vertical(
+                                  bottom: Radius.circular(10),
+                                ),
+                              ),
+                              child: Text(
+                                locked ? '$label (Locked)' : label,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, size: 28, color: AppTheme.primaryColor),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      locked
+                          ? 'Locked'
+                          : (enabled ? 'Tap to add' : 'Unavailable'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: enabled
+                            ? AppTheme.primaryColor
+                            : AppTheme.textHint,
+                      ),
+                    ),
+                  ],
                 ],
               ),
       ),
@@ -824,25 +1233,42 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
     bool required = false,
+    bool enabled = true,
     int maxLines = 1,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: TextFormField(
         controller: controller,
+        enabled: enabled,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         maxLines: maxLines,
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           hintText: hint,
-          prefixIcon: maxLines > 1 ? Padding(padding: const EdgeInsets.only(bottom: 24), child: Icon(icon)) : Icon(icon),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          prefixIcon: maxLines > 1
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Icon(icon),
+                )
+              : Icon(icon),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
           filled: true,
           fillColor: Colors.white,
         ),
-        validator: required ? (value) => (value == null || value.trim().isEmpty) ? '$label is required' : null : null,
+        validator: required
+            ? (value) => (value == null || value.trim().isEmpty)
+                  ? '$label is required'
+                  : null
+            : null,
       ),
     );
   }
@@ -854,8 +1280,23 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 80, child: Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary))),
-          Expanded(child: Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500))),
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );
